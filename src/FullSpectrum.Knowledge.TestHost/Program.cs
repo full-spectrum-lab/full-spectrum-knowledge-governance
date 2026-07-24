@@ -1,5 +1,7 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using FullSpectrum.Knowledge.Contracts;
+using FullSpectrum.Knowledge.Fixed;
 using FullSpectrum.Knowledge.Storage;
 
 namespace FullSpectrum.Knowledge.TestHost;
@@ -23,6 +25,7 @@ internal static class Program
     {
         "verify" when args.Length == 1 => VerifyRepository(),
         "verify-k0-02" when args.Length == 1 => VerifyK002(),
+        "verify-k0-03" when args.Length == 1 => VerifyK003(),
         "digest" when args.Length == 2 => PrintDigest(args[1]),
         "validate" when args.Length == 3 => Validate(args[1], args[2]),
         _ => Usage()
@@ -158,6 +161,89 @@ internal static class Program
     private static string StateName(KnowledgeLifecycleState state) =>
         JsonNamingPolicy.SnakeCaseUpper.ConvertName(state.ToString());
 
+    private static int VerifyK003()
+    {
+        var root = FindRepositoryRoot();
+        var temporary = Path.Combine(Path.GetTempPath(), $"fskg-k003-{Guid.NewGuid():N}");
+        try
+        {
+            var start = DateTimeOffset.Parse("2026-07-24T00:00:00Z");
+            var content = "{}"u8.ToArray();
+            var id = new KnowledgeId("KG-DEMO-FIXED");
+            var version = new KnowledgeVersion("1.0.0");
+            var artifactDigest = Convert.ToHexStringLower(
+                System.Security.Cryptography.SHA256.HashData(content));
+            var pack = new KnowledgePack(
+                "knowledge-contract/1.0.0",
+                id,
+                version,
+                KnowledgeLifecycleState.Draft,
+                "Synthetic fixed fixture",
+                "No real regulatory content.",
+                [
+                    new KnowledgeArtifact(
+                        "ART-SAFETY",
+                        "application/json",
+                        content.Length,
+                        DigestRef.Sha256(artifactDigest),
+                        "content.synthetic.json")
+                ],
+                new Dictionary<string, string> { ["fixture_status"] = "SYNTHETIC_ONLY" },
+                start);
+            using var registry = new KnowledgeRegistry(
+                Path.Combine(temporary, "metadata.sqlite3"),
+                Path.Combine(temporary, "artifacts"));
+            registry.Register(pack, [new ArtifactRegistration("ART-SAFETY", content)], "author", start);
+            registry.SubmitReview(id, version, "reviewer", start.AddMinutes(1));
+            registry.Release(id, version, "publisher", start.AddMinutes(2));
+
+            var request = new KnowledgeResolutionRequest(
+                "knowledge-contract/1.0.0",
+                "REQ-K003-GOLDEN",
+                KnowledgeResolutionMode.FixedOnly,
+                new string('a', 64),
+                ["SLOT-SAFETY", "SLOT-MISSING"],
+                new Dictionary<string, string> { ["fixture_status"] = "SYNTHETIC_ONLY" });
+            var result = new FixedKnowledgeResolver(registry).Resolve(
+                request,
+                [new FixedKnowledgeCandidate("SLOT-SAFETY", id, version, "ART-SAFETY")]);
+            var actual = DeterministicJson.Canonicalize(
+                JsonSerializer.Serialize(result, KnowledgeJson.Options));
+            var expectedPath = Path.Combine(root, "examples", "k0-03", "fixed-resolution.golden.json");
+            var expected = DeterministicJson.Canonicalize(File.ReadAllText(expectedPath));
+            var errors = new List<string>();
+            if (!string.Equals(actual, expected, StringComparison.Ordinal))
+            {
+                errors.Add("Golden FIXED resolution result mismatch.");
+            }
+            var replay = registry.GetResolution(result.ResolutionId);
+            if (replay.ResultDigest != result.ResultDigest)
+            {
+                errors.Add("Persisted resolution replay mismatch.");
+            }
+
+            Console.WriteLine(JsonSerializer.Serialize(new
+            {
+                status = errors.Count == 0 ? "PASS" : "FAIL",
+                resolution_id = result.ResolutionId,
+                resolution_status = result.Status,
+                selected = result.Selected.Count,
+                excluded = result.Excluded.Count,
+                unresolved = result.Unresolved.Count,
+                unknowns = result.Unknowns.Count,
+                result_sha256 = result.ResultDigest.Value,
+                golden_sha256 = DeterministicJson.ComputeSha256(expected).Value,
+                actual_result = JsonNode.Parse(actual),
+                errors
+            }, KnowledgeJson.Options));
+            return errors.Count == 0 ? 0 : 1;
+        }
+        finally
+        {
+            if (Directory.Exists(temporary)) Directory.Delete(temporary, recursive: true);
+        }
+    }
+
     private static int Validate(string instancePath, string schemaPath)
     {
         var errors = SchemaSubsetValidator.Validate(
@@ -187,7 +273,7 @@ internal static class Program
 
     private static int Usage()
     {
-        Console.Error.WriteLine("Usage: verify | verify-k0-02 | digest <json> | validate <instance> <schema>");
+        Console.Error.WriteLine("Usage: verify | verify-k0-02 | verify-k0-03 | digest <json> | validate <instance> <schema>");
         return 2;
     }
 }

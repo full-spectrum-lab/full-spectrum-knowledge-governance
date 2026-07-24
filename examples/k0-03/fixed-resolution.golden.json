@@ -1,0 +1,44 @@
+{
+  "contract_version": "knowledge-contract/1.0.0",
+  "resolution_id": "KRS-BFDE43202C9B0536451F",
+  "request_id": "REQ-K003-GOLDEN",
+  "mode": "FIXED_ONLY",
+  "status": "PARTIAL",
+  "selected": [
+    {
+      "binding_id": "BIND-SLOT-SAFETY-KG-DEMO-FIXED-1.0.0-ART-SAFETY",
+      "slot_id": "SLOT-SAFETY",
+      "status": "BOUND",
+      "knowledge_id": "KG-DEMO-FIXED",
+      "version": "1.0.0",
+      "artifact_digest": {
+        "algorithm": "SHA-256",
+        "value": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+      },
+      "reason_codes": [
+        "EXACT_RELEASED_MATCH"
+      ]
+    }
+  ],
+  "excluded": [],
+  "unresolved": [
+    {
+      "binding_id": "BIND-SLOT-MISSING-UNRESOLVED",
+      "slot_id": "SLOT-MISSING",
+      "status": "UNRESOLVED",
+      "knowledge_id": null,
+      "version": null,
+      "artifact_digest": null,
+      "reason_codes": [
+        "REQUIRED_SLOT_UNBOUND"
+      ]
+    }
+  ],
+  "unknowns": [
+    "SLOT:SLOT-MISSING:REQUIRED_SLOT_UNBOUND"
+  ],
+  "result_digest": {
+    "algorithm": "SHA-256",
+    "value": "b1e015b057c1f6eb84b8c17aeecc41145e35e3f7debc46fb9c33bbe5ff334be1"
+  }
+}

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using FullSpectrum.Knowledge.Contracts;
+using FullSpectrum.Knowledge.Fixed;
 using FullSpectrum.Knowledge.Storage;
 
 namespace FullSpectrum.Knowledge.Tests;
@@ -34,7 +35,21 @@ internal static class Program
         ("Replay reconstructs historical state", ReplayHistoricalState),
         ("Registry keeps exact versions independent", ExactVersionsIndependent),
         ("Registry reports missing identity", MissingIdentity),
-        ("Audit event conforms to its schema", AuditEventSchema)
+        ("Audit event conforms to its schema", AuditEventSchema),
+        ("Fixed resolution selects one exact released candidate", FixedSelectsReleased),
+        ("Fixed resolution excludes a draft candidate", FixedRejectsDraft),
+        ("Fixed resolution excludes a revoked candidate", FixedRejectsRevoked),
+        ("Fixed resolution fails closed when slot is unbound", FixedUnbound),
+        ("Fixed resolution fails closed on ambiguity", FixedAmbiguous),
+        ("Fixed resolution keeps exact versions distinct", FixedExactVersion),
+        ("Fixed resolution is deterministic", FixedDeterministic),
+        ("Fixed resolution survives registry restart", FixedReplayAfterRestart),
+        ("Fixed resolution rejects non-fixed mode", FixedRejectsMode),
+        ("Fixed resolution rejects duplicate required slots", FixedRejectsDuplicateSlots),
+        ("Fixed resolution rejects request-id payload conflict", FixedRequestConflict),
+        ("Fixed candidate conforms to its schema", FixedCandidateSchema),
+        ("Fixed result conforms to its schema", FixedResultSchema),
+        ("Fixed resolution rejects an invalid subject digest", FixedRejectsSubjectDigest)
     ];
 
     private static int Main()
@@ -303,6 +318,149 @@ internal static class Program
         Equal(0, errors.Count);
     }
 
+    private static void FixedSelectsReleased()
+    {
+        using var fixture = new RegistryFixture();
+        fixture.RegisterAndRelease(fixture.Pack());
+        var result = fixture.Resolver.Resolve(fixture.Request(), [fixture.Candidate()]);
+        Equal(KnowledgeResolutionStatus.Succeeded, result.Status);
+        Equal(1, result.Selected.Count);
+        Equal(0, result.Unresolved.Count);
+        Equal("EXACT_RELEASED_MATCH", result.Selected[0].ReasonCodes.Single());
+    }
+
+    private static void FixedRejectsDraft()
+    {
+        using var fixture = new RegistryFixture();
+        fixture.Register();
+        var result = fixture.Resolver.Resolve(fixture.Request(), [fixture.Candidate()]);
+        Equal(KnowledgeResolutionStatus.Failed, result.Status);
+        Equal("STATE_NOT_RELEASED", result.Excluded.Single().ReasonCodes.Single());
+        Equal("SLOT:SLOT-SAFETY:NO_RELEASED_CANDIDATE", result.Unknowns.Single());
+    }
+
+    private static void FixedRejectsRevoked()
+    {
+        using var fixture = new RegistryFixture();
+        fixture.RegisterAndRelease(fixture.Pack());
+        fixture.Registry.Revoke(fixture.Id, fixture.Version, "publisher", fixture.At.AddMinutes(3));
+        var result = fixture.Resolver.Resolve(fixture.Request(), [fixture.Candidate()]);
+        Equal(KnowledgeResolutionStatus.Failed, result.Status);
+        Equal("STATE_NOT_RELEASED", result.Excluded.Single().ReasonCodes.Single());
+    }
+
+    private static void FixedUnbound()
+    {
+        using var fixture = new RegistryFixture();
+        var result = fixture.Resolver.Resolve(fixture.Request(), []);
+        Equal(KnowledgeResolutionStatus.Failed, result.Status);
+        Equal("REQUIRED_SLOT_UNBOUND", result.Unresolved.Single().ReasonCodes.Single());
+    }
+
+    private static void FixedAmbiguous()
+    {
+        using var fixture = new RegistryFixture();
+        var first = fixture.Pack();
+        var second = fixture.Pack() with { Version = new KnowledgeVersion("0.2.0") };
+        fixture.RegisterAndRelease(first);
+        fixture.RegisterAndRelease(second, minuteOffset: 4);
+        var result = fixture.Resolver.Resolve(
+            fixture.Request(),
+            [fixture.Candidate(first), fixture.Candidate(second)]);
+        Equal(KnowledgeResolutionStatus.Failed, result.Status);
+        Equal(0, result.Selected.Count);
+        Equal(2, result.Excluded.Count);
+        Equal("MULTIPLE_RELEASED_CANDIDATES", result.Unresolved.Single().ReasonCodes.Single());
+    }
+
+    private static void FixedExactVersion()
+    {
+        using var fixture = new RegistryFixture();
+        var draft = fixture.Pack();
+        var released = fixture.Pack() with { Version = new KnowledgeVersion("0.2.0") };
+        fixture.Register();
+        fixture.RegisterAndRelease(released, minuteOffset: 4);
+        var result = fixture.Resolver.Resolve(fixture.Request(), [fixture.Candidate(released)]);
+        Equal(released.Version, result.Selected.Single().Version);
+        Equal(KnowledgeLifecycleState.Draft, fixture.Registry.Get(draft.KnowledgeId, draft.Version).State);
+    }
+
+    private static void FixedDeterministic()
+    {
+        string ResolveOnce()
+        {
+            using var fixture = new RegistryFixture();
+            fixture.RegisterAndRelease(fixture.Pack());
+            var result = fixture.Resolver.Resolve(fixture.Request(), [fixture.Candidate()]);
+            return $"{result.ResolutionId}|{result.ResultDigest.Value}";
+        }
+        Equal(ResolveOnce(), ResolveOnce());
+    }
+
+    private static void FixedReplayAfterRestart()
+    {
+        using var fixture = new RegistryFixture();
+        fixture.RegisterAndRelease(fixture.Pack());
+        var result = fixture.Resolver.Resolve(fixture.Request(), [fixture.Candidate()]);
+        fixture.Restart();
+        var replay = fixture.Registry.GetResolution(result.ResolutionId);
+        Equal(result.ResultDigest, replay.ResultDigest);
+        Equal(result.Selected.Single().KnowledgeId, replay.Selected.Single().KnowledgeId);
+    }
+
+    private static void FixedRejectsMode()
+    {
+        using var fixture = new RegistryFixture();
+        var request = fixture.Request() with { Mode = KnowledgeResolutionMode.Hybrid };
+        Throws<ArgumentException>(() => fixture.Resolver.Resolve(request, []));
+    }
+
+    private static void FixedRejectsDuplicateSlots()
+    {
+        using var fixture = new RegistryFixture();
+        var request = fixture.Request() with { RequiredSlots = ["SLOT-SAFETY", "SLOT-SAFETY"] };
+        Throws<ArgumentException>(() => fixture.Resolver.Resolve(request, []));
+    }
+
+    private static void FixedRequestConflict()
+    {
+        using var fixture = new RegistryFixture();
+        fixture.RegisterAndRelease(fixture.Pack());
+        fixture.Resolver.Resolve(fixture.Request(), [fixture.Candidate()]);
+        var changed = fixture.Request() with { SubjectDigest = new string('1', 64) };
+        Throws<KnowledgeConflictException>(() => fixture.Resolver.Resolve(changed, [fixture.Candidate()]));
+    }
+
+    private static void FixedCandidateSchema()
+    {
+        using var fixture = new RegistryFixture();
+        Equal(0, ValidateSchema(
+            JsonSerializer.Serialize(fixture.Candidate(), KnowledgeJson.Options),
+            "fixed-knowledge-candidate.schema.json").Count);
+    }
+
+    private static void FixedResultSchema()
+    {
+        using var fixture = new RegistryFixture();
+        fixture.RegisterAndRelease(fixture.Pack());
+        var result = fixture.Resolver.Resolve(fixture.Request(), [fixture.Candidate()]);
+        Equal(0, ValidateSchema(
+            JsonSerializer.Serialize(result, KnowledgeJson.Options),
+            "knowledge-resolution-result.schema.json").Count);
+    }
+
+    private static IReadOnlyList<string> ValidateSchema(string instance, string schemaName) =>
+        FullSpectrum.Knowledge.TestHost.SchemaSubsetValidator.Validate(
+            instance,
+            File.ReadAllText(Path.Combine(Root(), "schemas", "knowledge", "v1.0", schemaName)));
+
+    private static void FixedRejectsSubjectDigest()
+    {
+        using var fixture = new RegistryFixture();
+        var request = fixture.Request() with { SubjectDigest = "NOT-A-DIGEST" };
+        Throws<ArgumentException>(() => fixture.Resolver.Resolve(request, []));
+    }
+
     private static IReadOnlyList<string> ValidateFixture() => Validate(File.ReadAllText(FixturePath()));
 
     private static IReadOnlyList<string> Validate(string instance)
@@ -382,11 +540,13 @@ internal static class Program
         internal KnowledgeVersion Version { get; } = new("0.1.0");
         internal DateTimeOffset At { get; } = DateTimeOffset.Parse("2026-07-24T00:00:00Z");
         internal KnowledgeRegistry Registry { get; private set; }
+        internal FixedKnowledgeResolver Resolver { get; private set; }
 
         internal RegistryFixture()
         {
             Directory.CreateDirectory(root);
             Registry = Open();
+            Resolver = new FixedKnowledgeResolver(Registry);
         }
 
         internal KnowledgePack Pack() => new(
@@ -413,10 +573,38 @@ internal static class Program
             "test-author",
             At);
 
+        internal void RegisterAndRelease(KnowledgePack pack, int minuteOffset = 0)
+        {
+            Registry.Register(
+                pack,
+                [new ArtifactRegistration("ART-001", "{}"u8.ToArray())],
+                "author",
+                At.AddMinutes(minuteOffset));
+            Registry.SubmitReview(
+                pack.KnowledgeId, pack.Version, "reviewer", At.AddMinutes(minuteOffset + 1));
+            Registry.Release(
+                pack.KnowledgeId, pack.Version, "publisher", At.AddMinutes(minuteOffset + 2));
+        }
+
+        internal FixedKnowledgeCandidate Candidate(KnowledgePack? pack = null)
+        {
+            pack ??= Pack();
+            return new FixedKnowledgeCandidate("SLOT-SAFETY", pack.KnowledgeId, pack.Version, "ART-001");
+        }
+
+        internal KnowledgeResolutionRequest Request() => new(
+            "knowledge-contract/1.0.0",
+            "REQ-K003-001",
+            KnowledgeResolutionMode.FixedOnly,
+            new string('a', 64),
+            ["SLOT-SAFETY"],
+            new Dictionary<string, string> { ["fixture_status"] = "SYNTHETIC_ONLY" });
+
         internal void Restart()
         {
             Registry.Dispose();
             Registry = Open();
+            Resolver = new FixedKnowledgeResolver(Registry);
         }
 
         private KnowledgeRegistry Open() => new(

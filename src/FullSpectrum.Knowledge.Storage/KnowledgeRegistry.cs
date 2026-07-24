@@ -35,7 +35,14 @@ public sealed class KnowledgeRegistry : IDisposable
             );
             CREATE INDEX IF NOT EXISTS ix_knowledge_audit_identity
               ON knowledge_audit(knowledge_id, version, sequence);
-            PRAGMA user_version=1;
+            CREATE TABLE IF NOT EXISTS knowledge_resolutions (
+              resolution_id TEXT PRIMARY KEY,
+              request_id TEXT NOT NULL UNIQUE,
+              request_json TEXT NOT NULL,
+              result_json TEXT NOT NULL,
+              result_digest TEXT NOT NULL
+            );
+            PRAGMA user_version=2;
             """);
     }
 
@@ -156,6 +163,74 @@ public sealed class KnowledgeRegistry : IDisposable
             item => string.Equals(item.ArtifactId, artifactId, StringComparison.Ordinal))
             ?? throw new KnowledgeNotFoundException($"Artifact '{artifactId}' was not found.");
         return artifacts.Read(artifact.Digest);
+    }
+
+    public KnowledgeResolutionResult SaveResolution(
+        KnowledgeResolutionRequest request,
+        KnowledgeResolutionResult result)
+    {
+        var requestJson = DeterministicJson.Canonicalize(
+            JsonSerializer.Serialize(request, KnowledgeJson.Options));
+        var resultJson = DeterministicJson.Canonicalize(
+            JsonSerializer.Serialize(result, KnowledgeJson.Options));
+        return database.Transaction(() =>
+        {
+            var rows = database.Query(
+                "SELECT request_json,result_json FROM knowledge_resolutions WHERE request_id=?;",
+                row => (Request: row.Text(0), Result: row.Text(1)),
+                request.RequestId);
+            if (rows.Count != 0)
+            {
+                if (!string.Equals(rows[0].Request, requestJson, StringComparison.Ordinal) ||
+                    !string.Equals(rows[0].Result, resultJson, StringComparison.Ordinal))
+                {
+                    throw new KnowledgeConflictException(
+                        $"Request '{request.RequestId}' already has a different resolution.");
+                }
+                return JsonSerializer.Deserialize<KnowledgeResolutionResult>(
+                    rows[0].Result, KnowledgeJson.Options)
+                    ?? throw new InvalidDataException("Stored resolution JSON is invalid.");
+            }
+
+            database.Execute(
+                """
+                INSERT INTO knowledge_resolutions
+                  (resolution_id,request_id,request_json,result_json,result_digest)
+                VALUES(?,?,?,?,?);
+                """,
+                result.ResolutionId,
+                request.RequestId,
+                requestJson,
+                resultJson,
+                result.ResultDigest.Value);
+            return result;
+        });
+    }
+
+    public KnowledgeResolutionResult? TryGetResolutionByRequest(string requestId)
+    {
+        var rows = database.Query(
+            "SELECT result_json FROM knowledge_resolutions WHERE request_id=?;",
+            row => row.Text(0),
+            requestId);
+        return rows.Count == 0
+            ? null
+            : JsonSerializer.Deserialize<KnowledgeResolutionResult>(rows[0], KnowledgeJson.Options)
+              ?? throw new InvalidDataException("Stored resolution JSON is invalid.");
+    }
+
+    public KnowledgeResolutionResult GetResolution(string resolutionId)
+    {
+        var rows = database.Query(
+            "SELECT result_json FROM knowledge_resolutions WHERE resolution_id=?;",
+            row => row.Text(0),
+            resolutionId);
+        if (rows.Count == 0)
+        {
+            throw new KnowledgeNotFoundException($"Resolution '{resolutionId}' was not found.");
+        }
+        return JsonSerializer.Deserialize<KnowledgeResolutionResult>(rows[0], KnowledgeJson.Options)
+            ?? throw new InvalidDataException("Stored resolution JSON is invalid.");
     }
 
     private KnowledgePack Transition(

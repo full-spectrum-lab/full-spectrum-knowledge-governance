@@ -21,9 +21,57 @@
     "request_id": { "type": "string", "minLength": 1 },
     "mode": { "enum": ["FIXED_ONLY", "DYNAMIC_ONLY", "HYBRID"] },
     "status": { "enum": ["SUCCEEDED", "PARTIAL", "FAILED"] },
-    "selected": { "type": "array" },
-    "excluded": { "type": "array" },
-    "unresolved": { "type": "array" },
+    "selected": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["binding_id", "slot_id", "status", "knowledge_id", "version", "artifact_digest", "reason_codes"],
+        "properties": {
+          "binding_id": { "type": "string", "minLength": 1 },
+          "slot_id": { "type": "string", "minLength": 1 },
+          "status": { "enum": ["BOUND", "UNBOUND", "UNRESOLVED", "EXCLUDED"] },
+          "knowledge_id": { "type": ["string", "null"] },
+          "version": { "type": ["string", "null"] },
+          "artifact_digest": { "type": ["object", "null"] },
+          "reason_codes": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+        }
+      }
+    },
+    "excluded": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["binding_id", "slot_id", "status", "knowledge_id", "version", "artifact_digest", "reason_codes"],
+        "properties": {
+          "binding_id": { "type": "string", "minLength": 1 },
+          "slot_id": { "type": "string", "minLength": 1 },
+          "status": { "enum": ["BOUND", "UNBOUND", "UNRESOLVED", "EXCLUDED"] },
+          "knowledge_id": { "type": ["string", "null"] },
+          "version": { "type": ["string", "null"] },
+          "artifact_digest": { "type": ["object", "null"] },
+          "reason_codes": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+        }
+      }
+    },
+    "unresolved": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["binding_id", "slot_id", "status", "knowledge_id", "version", "artifact_digest", "reason_codes"],
+        "properties": {
+          "binding_id": { "type": "string", "minLength": 1 },
+          "slot_id": { "type": "string", "minLength": 1 },
+          "status": { "enum": ["BOUND", "UNBOUND", "UNRESOLVED", "EXCLUDED"] },
+          "knowledge_id": { "type": ["string", "null"] },
+          "version": { "type": ["string", "null"] },
+          "artifact_digest": { "type": ["object", "null"] },
+          "reason_codes": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+        }
+      }
+    },
     "unknowns": {
       "type": "array",
       "items": { "type": "string" }

@@ -35,6 +35,12 @@ public sealed record KnowledgeResolutionRequest(
     IReadOnlyList<string> RequiredSlots,
     IReadOnlyDictionary<string, string> Context);
 
+public sealed record FixedKnowledgeCandidate(
+    string SlotId,
+    KnowledgeId KnowledgeId,
+    KnowledgeVersion Version,
+    string ArtifactId);
+
 public sealed record KnowledgeResolutionResult(
     string ContractVersion,
     string ResolutionId,

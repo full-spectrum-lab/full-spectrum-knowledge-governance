@@ -15,3 +15,7 @@ All notable changes will be documented here.
 - K0-02 SQLite metadata registry and content-addressed local Artifact Store.
 - Lifecycle transition gates, append-only audit, historical replay, and restart persistence.
 - K0-02 Golden CASE, audit-event schema, and offline verification command.
+- K0-02 third-party independent verification accepted.
+- K0-03 deterministic `FIXED_ONLY` resolver with exact released-candidate gates.
+- Fail-closed missing/ambiguous resolution, explicit UNKNOWN, persistence, and replay.
+- K0-03 Golden CASE, candidate Schema, nested result Schema, and verification command.

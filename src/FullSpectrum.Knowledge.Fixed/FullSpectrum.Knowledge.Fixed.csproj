@@ -1,12 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <RootNamespace>FullSpectrum.Knowledge.TestHost</RootNamespace>
-    <AssemblyName>FullSpectrum.Knowledge.TestHost</AssemblyName>
+    <Description>Deterministic fail-closed FIXED_ONLY knowledge resolution.</Description>
+    <RootNamespace>FullSpectrum.Knowledge.Fixed</RootNamespace>
+    <AssemblyName>FullSpectrum.Knowledge.Fixed</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../FullSpectrum.Knowledge.Contracts/FullSpectrum.Knowledge.Contracts.csproj" />
-    <ProjectReference Include="../FullSpectrum.Knowledge.Fixed/FullSpectrum.Knowledge.Fixed.csproj" />
     <ProjectReference Include="../FullSpectrum.Knowledge.Storage/FullSpectrum.Knowledge.Storage.csproj" />
   </ItemGroup>
 </Project>
