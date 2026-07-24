@@ -2,6 +2,8 @@
 
 Requirements: .NET SDK/runtime 10.0.301 and local SQLite support.
 
+The package is framework-dependent. Set `DOTNET_ROOT` to the installed .NET 10 runtime location when it is not registered system-wide.
+
 Restore and verify:
 
 ```powershell
