@@ -1,0 +1,23 @@
+{
+  "profile_code": "PROFILE-DEMO",
+  "profile_version": "1.0.0",
+  "subject_id": "SUBJECT-DEMO",
+  "candidates": [
+    {
+      "slot_id": "SLOT-SAFETY",
+      "knowledge_id": "KG-DEMO-DOMAIN",
+      "version": "1.0.0",
+      "artifact_id": "ART-001"
+    }
+  ],
+  "expectations": [
+    {
+      "slot_id": "SLOT-SAFETY",
+      "required_granularity": "MODEL"
+    }
+  ],
+  "plan_digest": {
+    "algorithm": "SHA-256",
+    "value": "b6cd4e6647ef32f9ac4e0bee15e6e292340148231959b179862a49ac332e9087"
+  }
+}

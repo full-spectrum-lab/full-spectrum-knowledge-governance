@@ -89,3 +89,50 @@ public sealed record KnowledgeResolutionEvidence(
     CoverageAssessment Coverage,
     IReadOnlyList<string> Explain,
     DigestRef EvidenceDigest);
+
+public sealed record TaxonomyNode(
+    string Code,
+    string? ParentCode,
+    KnowledgeGranularity Granularity,
+    string Label);
+
+public sealed record KnowledgeSlotDefinition(
+    string SlotId,
+    bool Required,
+    KnowledgeGranularity RequiredGranularity,
+    IReadOnlyList<string> AllowedTaxonomyCodes,
+    IReadOnlyList<string> TriggerFeatureCodes);
+
+public sealed record DomainKnowledgeBinding(
+    string BindingCode,
+    string SlotId,
+    KnowledgeId KnowledgeId,
+    KnowledgeVersion Version,
+    string ArtifactId,
+    KnowledgeGranularity ActualGranularity,
+    IReadOnlyList<string> TaxonomyCodes,
+    IReadOnlyList<string> FeatureCodes);
+
+public sealed record DomainProfile(
+    string ContractVersion,
+    string ProfileCode,
+    KnowledgeVersion Version,
+    KnowledgeLifecycleState State,
+    string DomainCode,
+    IReadOnlyList<TaxonomyNode> Taxonomy,
+    IReadOnlyList<KnowledgeSlotDefinition> Slots,
+    IReadOnlyList<DomainKnowledgeBinding> Bindings);
+
+public sealed record SubjectProfile(
+    string SubjectId,
+    string DomainCode,
+    IReadOnlyList<string> TaxonomyCodes,
+    IReadOnlyList<string> FeatureCodes);
+
+public sealed record DomainResolutionPlan(
+    string ProfileCode,
+    KnowledgeVersion ProfileVersion,
+    string SubjectId,
+    IReadOnlyList<FixedKnowledgeCandidate> Candidates,
+    IReadOnlyList<SlotCoverageExpectation> Expectations,
+    DigestRef PlanDigest);

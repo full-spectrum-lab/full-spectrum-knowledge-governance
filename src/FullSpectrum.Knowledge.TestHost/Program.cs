@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using FullSpectrum.Knowledge.Contracts;
+using FullSpectrum.Knowledge.Domain;
 using FullSpectrum.Knowledge.Fixed;
 using FullSpectrum.Knowledge.Storage;
 using FullSpectrum.Knowledge.Trace;
@@ -28,6 +29,7 @@ internal static class Program
         "verify-k0-02" when args.Length == 1 => VerifyK002(),
         "verify-k0-03" when args.Length == 1 => VerifyK003(),
         "verify-k0-04" when args.Length == 1 => VerifyK004(),
+        "verify-k0-05" when args.Length == 1 => VerifyK005(),
         "digest" when args.Length == 2 => PrintDigest(args[1]),
         "validate" when args.Length == 3 => Validate(args[1], args[2]),
         _ => Usage()
@@ -332,6 +334,61 @@ internal static class Program
         {
             if (Directory.Exists(temporary)) Directory.Delete(temporary, recursive: true);
         }
+    }
+
+    private static int VerifyK005()
+    {
+        var root = FindRepositoryRoot();
+        var profile = new DomainProfile(
+            "knowledge-contract/1.0.0", "PROFILE-DEMO", new KnowledgeVersion("1.0.0"),
+            KnowledgeLifecycleState.Released, "DOMAIN-DEMO",
+            [
+                new TaxonomyNode("IND-DEMO", null, KnowledgeGranularity.Industry, "Synthetic industry"),
+                new TaxonomyNode("CAT-DEMO", "IND-DEMO", KnowledgeGranularity.Category, "Synthetic category"),
+                new TaxonomyNode("MODEL-DEMO", "CAT-DEMO", KnowledgeGranularity.Model, "Synthetic model"),
+                new TaxonomyNode("FEATURE-DEMO", "MODEL-DEMO", KnowledgeGranularity.Feature, "Synthetic feature")
+            ],
+            [new KnowledgeSlotDefinition("SLOT-SAFETY", true, KnowledgeGranularity.Model, ["MODEL-DEMO"], ["FEATURE-DEMO"])],
+            [new DomainKnowledgeBinding("MAP-SAFETY", "SLOT-SAFETY", new KnowledgeId("KG-DEMO-DOMAIN"),
+                new KnowledgeVersion("1.0.0"), "ART-001", KnowledgeGranularity.Model,
+                ["MODEL-DEMO"], ["FEATURE-DEMO"])]);
+        var subject = new SubjectProfile(
+            "SUBJECT-DEMO", "DOMAIN-DEMO",
+            ["IND-DEMO", "CAT-DEMO", "MODEL-DEMO"], ["FEATURE-DEMO"]);
+        var validation = DomainProfileValidator.Validate(profile);
+        var plan = DomainResolutionPlanner.Plan(profile, subject);
+        var actual = DeterministicJson.Canonicalize(JsonSerializer.Serialize(plan, KnowledgeJson.Options));
+        var expectedPath = Path.Combine(root, "examples", "k0-05", "domain-resolution-plan.golden.json");
+        var expected = DeterministicJson.Canonicalize(File.ReadAllText(expectedPath));
+        var errors = new List<string>();
+        if (!validation.IsValid) errors.AddRange(validation.Errors);
+        if (!string.Equals(actual, expected, StringComparison.Ordinal))
+            errors.Add("Golden domain resolution plan mismatch.");
+        foreach (var (value, schema) in new[]
+        {
+            (JsonSerializer.Serialize(profile, KnowledgeJson.Options), "domain-profile.schema.json"),
+            (JsonSerializer.Serialize(subject, KnowledgeJson.Options), "subject-profile.schema.json"),
+            (JsonSerializer.Serialize(plan, KnowledgeJson.Options), "domain-resolution-plan.schema.json")
+        })
+        {
+            errors.AddRange(SchemaSubsetValidator.Validate(
+                value, File.ReadAllText(Path.Combine(root, "schemas", "knowledge", "v1.0", schema)))
+                .Select(item => $"{schema}:{item}"));
+        }
+        Console.WriteLine(JsonSerializer.Serialize(new
+        {
+            status = errors.Count == 0 ? "PASS" : "FAIL",
+            profile_code = profile.ProfileCode,
+            profile_version = profile.Version,
+            taxonomy_nodes = profile.Taxonomy.Count,
+            required_slots = plan.Expectations.Count,
+            candidates = plan.Candidates.Count,
+            plan_sha256 = plan.PlanDigest.Value,
+            golden_sha256 = DeterministicJson.ComputeSha256(expected).Value,
+            actual_plan = JsonNode.Parse(actual),
+            errors
+        }, KnowledgeJson.Options));
+        return errors.Count == 0 ? 0 : 1;
     }
 
     private static int Validate(string instancePath, string schemaPath)

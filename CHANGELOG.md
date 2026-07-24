@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — K0-05 candidate
+
+- Added released domain profiles, taxonomy, slots and exact knowledge bindings.
+- Added fail-closed configuration validation and deterministic resolution planning.
+- Added 3 schemas, a synthetic Golden CASE and 15 automated tests.
+- Preserved K0-01–K0-04 behavior and the Observer/Engine zero-intrusion boundary.
+
 All notable changes will be documented here.
 
 ## Unreleased

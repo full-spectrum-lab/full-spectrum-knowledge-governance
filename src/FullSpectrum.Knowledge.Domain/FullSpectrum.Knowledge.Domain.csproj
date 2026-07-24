@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Validated Domain Profile, taxonomy, Slot and binding planning.</Description>
+    <RootNamespace>FullSpectrum.Knowledge.Domain</RootNamespace>
+    <AssemblyName>FullSpectrum.Knowledge.Domain</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../FullSpectrum.Knowledge.Contracts/FullSpectrum.Knowledge.Contracts.csproj" />
+  </ItemGroup>
+</Project>

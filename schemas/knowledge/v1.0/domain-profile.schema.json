@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://full-spectrum-lab.example/schemas/knowledge/v1.0/domain-profile.schema.json",
+  "title": "Domain Profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "profile_code", "version", "state", "domain_code", "taxonomy", "slots", "bindings"],
+  "properties": {
+    "contract_version": { "const": "knowledge-contract/1.0.0" },
+    "profile_code": { "type": "string", "pattern": "^[A-Z][A-Z0-9._-]{2,63}$" },
+    "version": { "type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?$" },
+    "state": { "enum": ["DRAFT", "REVIEW_REQUIRED", "RELEASED", "SUPERSEDED", "REVOKED"] },
+    "domain_code": { "type": "string", "pattern": "^[A-Z][A-Z0-9._-]{2,63}$" },
+    "taxonomy": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/taxonomy_node" } },
+    "slots": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/slot" } },
+    "bindings": { "type": "array", "items": { "$ref": "#/$defs/binding" } }
+  },
+  "$defs": {
+    "code": { "type": "string", "pattern": "^[A-Z][A-Z0-9._-]{2,63}$" },
+    "granularity": { "enum": ["INDUSTRY", "CATEGORY", "SERIES", "MODEL", "FEATURE"] },
+    "taxonomy_node": {
+      "type": "object", "additionalProperties": false,
+      "required": ["code", "parent_code", "granularity", "label"],
+      "properties": {
+        "code": { "$ref": "#/$defs/code" },
+        "parent_code": { "type": ["string", "null"] },
+        "granularity": { "$ref": "#/$defs/granularity" },
+        "label": { "type": "string", "minLength": 1 }
+      }
+    },
+    "slot": {
+      "type": "object", "additionalProperties": false,
+      "required": ["slot_id", "required", "required_granularity", "allowed_taxonomy_codes", "trigger_feature_codes"],
+      "properties": {
+        "slot_id": { "$ref": "#/$defs/code" }, "required": { "type": "boolean" },
+        "required_granularity": { "$ref": "#/$defs/granularity" },
+        "allowed_taxonomy_codes": { "type": "array", "items": { "$ref": "#/$defs/code" } },
+        "trigger_feature_codes": { "type": "array", "items": { "$ref": "#/$defs/code" } }
+      }
+    },
+    "binding": {
+      "type": "object", "additionalProperties": false,
+      "required": ["binding_code", "slot_id", "knowledge_id", "version", "artifact_id", "actual_granularity", "taxonomy_codes", "feature_codes"],
+      "properties": {
+        "binding_code": { "$ref": "#/$defs/code" }, "slot_id": { "$ref": "#/$defs/code" },
+        "knowledge_id": { "type": "string", "pattern": "^KG-[A-Z0-9][A-Z0-9._-]{2,63}$" },
+        "version": { "type": "string" }, "artifact_id": { "type": "string", "minLength": 1 },
+        "actual_granularity": { "$ref": "#/$defs/granularity" },
+        "taxonomy_codes": { "type": "array", "items": { "$ref": "#/$defs/code" } },
+        "feature_codes": { "type": "array", "items": { "$ref": "#/$defs/code" } }
+      }
+    }
+  }
+}

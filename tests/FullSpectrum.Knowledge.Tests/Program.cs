@@ -1,5 +1,6 @@
 using System.Text.Json;
 using FullSpectrum.Knowledge.Contracts;
+using FullSpectrum.Knowledge.Domain;
 using FullSpectrum.Knowledge.Fixed;
 using FullSpectrum.Knowledge.Storage;
 using FullSpectrum.Knowledge.Trace;
@@ -64,7 +65,22 @@ internal static class Program
         ("Trace preserves resolver reason codes", TracePreservesReasons),
         ("Match trace conforms to its schema", MatchTraceSchema),
         ("Coverage conforms to its schema", CoverageSchema),
-        ("Resolution evidence conforms to its schema", ResolutionEvidenceSchema)
+        ("Resolution evidence conforms to its schema", ResolutionEvidenceSchema),
+        ("Released domain profile validates", DomainProfileValid),
+        ("Domain profile rejects duplicate taxonomy", DomainProfileDuplicateTaxonomy),
+        ("Domain profile rejects unknown parent", DomainProfileUnknownParent),
+        ("Domain profile rejects taxonomy cycle", DomainProfileCycle),
+        ("Domain profile rejects unknown binding slot", DomainProfileUnknownSlot),
+        ("Domain profile rejects unbound required slot", DomainProfileRequiredUnbound),
+        ("Domain profile rejects non-feature trigger", DomainProfileInvalidFeature),
+        ("Domain planner rejects domain mismatch", DomainPlannerDomainMismatch),
+        ("Domain planner filters candidates by facts", DomainPlannerFilters),
+        ("Domain planner is deterministic", DomainPlannerDeterministic),
+        ("Domain planner emits required expectations", DomainPlannerExpectations),
+        ("Domain planner maps selected granularity", DomainPlannerMapsGranularity),
+        ("Domain profile conforms to its schema", DomainProfileSchema),
+        ("Subject profile conforms to its schema", SubjectProfileSchema),
+        ("Domain resolution plan conforms to its schema", DomainPlanSchema)
     ];
 
     private static int Main()
@@ -673,6 +689,120 @@ internal static class Program
             JsonSerializer.Serialize(SyntheticEvidence(fixture), KnowledgeJson.Options),
             "knowledge-resolution-evidence.schema.json").Count);
     }
+
+    private static DomainProfile SyntheticDomainProfile() => new(
+        "knowledge-contract/1.0.0", "PROFILE-DEMO", new KnowledgeVersion("1.0.0"),
+        KnowledgeLifecycleState.Released, "DOMAIN-DEMO",
+        [
+            new TaxonomyNode("IND-DEMO", null, KnowledgeGranularity.Industry, "Synthetic industry"),
+            new TaxonomyNode("CAT-DEMO", "IND-DEMO", KnowledgeGranularity.Category, "Synthetic category"),
+            new TaxonomyNode("MODEL-DEMO", "CAT-DEMO", KnowledgeGranularity.Model, "Synthetic model"),
+            new TaxonomyNode("FEATURE-DEMO", "MODEL-DEMO", KnowledgeGranularity.Feature, "Synthetic feature")
+        ],
+        [
+            new KnowledgeSlotDefinition("SLOT-SAFETY", true, KnowledgeGranularity.Model, ["MODEL-DEMO"], ["FEATURE-DEMO"]),
+            new KnowledgeSlotDefinition("SLOT-OPTIONAL", false, KnowledgeGranularity.Category, ["CAT-DEMO"], [])
+        ],
+        [
+            new DomainKnowledgeBinding("MAP-SAFETY", "SLOT-SAFETY", new KnowledgeId("KG-DEMO-DOMAIN"),
+                new KnowledgeVersion("1.0.0"), "ART-001", KnowledgeGranularity.Model,
+                ["MODEL-DEMO"], ["FEATURE-DEMO"])
+        ]);
+
+    private static SubjectProfile SyntheticSubject() =>
+        new("SUBJECT-DEMO", "DOMAIN-DEMO", ["IND-DEMO", "CAT-DEMO", "MODEL-DEMO"], ["FEATURE-DEMO"]);
+
+    private static void DomainProfileValid() => True(DomainProfileValidator.Validate(SyntheticDomainProfile()).IsValid);
+
+    private static void DomainProfileDuplicateTaxonomy()
+    {
+        var profile = SyntheticDomainProfile();
+        var result = DomainProfileValidator.Validate(profile with { Taxonomy = [.. profile.Taxonomy, profile.Taxonomy[0]] });
+        True(result.Errors.Any(item => item.StartsWith("TAXONOMY_CODE_DUPLICATE", StringComparison.Ordinal)));
+    }
+
+    private static void DomainProfileUnknownParent()
+    {
+        var profile = SyntheticDomainProfile();
+        var taxonomy = profile.Taxonomy.Select(item => item.Code == "CAT-DEMO" ? item with { ParentCode = "IND-UNKNOWN" } : item).ToArray();
+        True(DomainProfileValidator.Validate(profile with { Taxonomy = taxonomy }).Errors.Any(
+            item => item.StartsWith("TAXONOMY_PARENT_UNKNOWN", StringComparison.Ordinal)));
+    }
+
+    private static void DomainProfileCycle()
+    {
+        var profile = SyntheticDomainProfile();
+        var taxonomy = profile.Taxonomy.Select(item => item.Code == "IND-DEMO" ? item with { ParentCode = "MODEL-DEMO" } : item).ToArray();
+        True(DomainProfileValidator.Validate(profile with { Taxonomy = taxonomy }).Errors.Any(
+            item => item.StartsWith("TAXONOMY_CYCLE", StringComparison.Ordinal)));
+    }
+
+    private static void DomainProfileUnknownSlot()
+    {
+        var profile = SyntheticDomainProfile();
+        var binding = profile.Bindings[0] with { SlotId = "SLOT-UNKNOWN" };
+        True(DomainProfileValidator.Validate(profile with { Bindings = [binding] }).Errors.Any(
+            item => item.StartsWith("BINDING_SLOT_UNKNOWN", StringComparison.Ordinal)));
+    }
+
+    private static void DomainProfileRequiredUnbound()
+    {
+        var result = DomainProfileValidator.Validate(SyntheticDomainProfile() with { Bindings = [] });
+        True(result.Errors.Any(item => item.StartsWith("PROFILE_REQUIRED_SLOT_UNBOUND", StringComparison.Ordinal)));
+    }
+
+    private static void DomainProfileInvalidFeature()
+    {
+        var profile = SyntheticDomainProfile();
+        var slot = profile.Slots[0] with { TriggerFeatureCodes = ["MODEL-DEMO"] };
+        True(DomainProfileValidator.Validate(profile with { Slots = [slot, profile.Slots[1]] }).Errors.Any(
+            item => item.StartsWith("SLOT_FEATURE_INVALID", StringComparison.Ordinal)));
+    }
+
+    private static void DomainPlannerDomainMismatch() =>
+        Throws<ArgumentException>(() => DomainResolutionPlanner.Plan(
+            SyntheticDomainProfile(), SyntheticSubject() with { DomainCode = "DOMAIN-OTHER" }));
+
+    private static void DomainPlannerFilters()
+    {
+        var empty = DomainResolutionPlanner.Plan(
+            SyntheticDomainProfile(), SyntheticSubject() with { FeatureCodes = [] });
+        Equal(0, empty.Candidates.Count);
+        Equal(1, DomainResolutionPlanner.Plan(SyntheticDomainProfile(), SyntheticSubject()).Candidates.Count);
+    }
+
+    private static void DomainPlannerDeterministic() =>
+        Equal(
+            DomainResolutionPlanner.Plan(SyntheticDomainProfile(), SyntheticSubject()).PlanDigest,
+            DomainResolutionPlanner.Plan(SyntheticDomainProfile(), SyntheticSubject()).PlanDigest);
+
+    private static void DomainPlannerExpectations()
+    {
+        var plan = DomainResolutionPlanner.Plan(SyntheticDomainProfile(), SyntheticSubject());
+        Equal(1, plan.Expectations.Count);
+        Equal("SLOT-SAFETY", plan.Expectations[0].SlotId);
+    }
+
+    private static void DomainPlannerMapsGranularity()
+    {
+        using var fixture = ReleasedFixture();
+        var result = fixture.Resolver.Resolve(fixture.Request(), [fixture.Candidate()]);
+        var profile = SyntheticDomainProfile();
+        var binding = profile.Bindings[0] with
+        {
+            KnowledgeId = fixture.Id, Version = fixture.Version, ArtifactId = "ART-001"
+        };
+        var mapped = DomainResolutionPlanner.MapSelectedGranularities(profile with { Bindings = [binding] }, result);
+        Equal(KnowledgeGranularity.Model, mapped[result.Selected.Single().BindingId]);
+    }
+
+    private static void DomainProfileSchema() => Equal(0, ValidateSchema(
+        JsonSerializer.Serialize(SyntheticDomainProfile(), KnowledgeJson.Options), "domain-profile.schema.json").Count);
+    private static void SubjectProfileSchema() => Equal(0, ValidateSchema(
+        JsonSerializer.Serialize(SyntheticSubject(), KnowledgeJson.Options), "subject-profile.schema.json").Count);
+    private static void DomainPlanSchema() => Equal(0, ValidateSchema(
+        JsonSerializer.Serialize(DomainResolutionPlanner.Plan(SyntheticDomainProfile(), SyntheticSubject()), KnowledgeJson.Options),
+        "domain-resolution-plan.schema.json").Count);
 
     private static IReadOnlyList<string> ValidateFixture() => Validate(File.ReadAllText(FixturePath()));
 

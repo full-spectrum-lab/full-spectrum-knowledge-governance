@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://full-spectrum-lab.example/schemas/knowledge/v1.0/subject-profile.schema.json",
+  "title": "Subject Profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["subject_id", "domain_code", "taxonomy_codes", "feature_codes"],
+  "properties": {
+    "subject_id": { "type": "string", "minLength": 1 },
+    "domain_code": { "type": "string", "pattern": "^[A-Z][A-Z0-9._-]{2,63}$" },
+    "taxonomy_codes": { "type": "array", "items": { "type": "string" } },
+    "feature_codes": { "type": "array", "items": { "type": "string" } }
+  }
+}

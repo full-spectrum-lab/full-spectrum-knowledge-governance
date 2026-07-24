@@ -5,6 +5,12 @@
       "fullspectrum.knowledge.contracts": {
         "type": "Project"
       },
+      "fullspectrum.knowledge.domain": {
+        "type": "Project",
+        "dependencies": {
+          "FullSpectrum.Knowledge.Contracts": "[1.0.0, )"
+        }
+      },
       "fullspectrum.knowledge.fixed": {
         "type": "Project",
         "dependencies": {
@@ -22,6 +28,7 @@
         "type": "Project",
         "dependencies": {
           "FullSpectrum.Knowledge.Contracts": "[1.0.0, )",
+          "FullSpectrum.Knowledge.Domain": "[1.0.0, )",
           "FullSpectrum.Knowledge.Fixed": "[1.0.0, )",
           "FullSpectrum.Knowledge.Storage": "[1.0.0, )",
           "FullSpectrum.Knowledge.Trace": "[1.0.0, )"
