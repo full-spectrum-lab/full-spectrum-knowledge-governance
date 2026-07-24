@@ -3,7 +3,7 @@
 > Date: 2026-07-24  
 > Test type: author self-test  
 > Verdict: `PASS`  
-> Clean-clone reproduction: `PASS`  
+> Clean-clone reproduction: `PASS`
 > Third-party independent verification: `NOT YET EXECUTED`
 
 ## Environment
