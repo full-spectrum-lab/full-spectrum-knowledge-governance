@@ -1,0 +1,30 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "full-spectrum-knowledge-governance-v0.1.0-alpha",
+  "documentNamespace": "https://gitee.com/full-spectrum/full-spectrum-knowledge-governance/sbom/v0.1.0-alpha",
+  "creationInfo": {
+    "created": "2026-07-24T00:00:00Z",
+    "creators": ["Organization: Full Spectrum Lab", "Tool: manual-locked-dependency-inventory"]
+  },
+  "packages": [
+    {
+      "name": "full-spectrum-knowledge-governance",
+      "SPDXID": "SPDXRef-Package",
+      "versionInfo": "0.1.0-alpha",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MulanPSL-2.0 OR Apache-2.0",
+      "licenseDeclared": "MulanPSL-2.0 OR Apache-2.0",
+      "copyrightText": "Copyright 2026 Full Spectrum Lab"
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package"
+    }
+  ]
+}
