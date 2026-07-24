@@ -2,7 +2,7 @@
 
 独立、本地优先的知识供应与治理系统。项目将知识材料治理为具有身份、精确版本、生命周期、内容摘要、适用条件、审计记录和重放能力的不可变依据。
 
-> 当前状态：`K0-01 IMPLEMENTED / NOT YET INDEPENDENTLY VERIFIED / NOT RELEASED`
+> 当前状态：`K0-01 IMPLEMENTED / CLEAN-CLONE REPRODUCED / AWAITING THIRD-PARTY VERIFICATION / NOT RELEASED`
 
 ## 边界
 

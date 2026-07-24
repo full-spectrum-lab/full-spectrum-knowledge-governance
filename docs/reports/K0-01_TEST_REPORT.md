@@ -3,7 +3,8 @@
 > Date: 2026-07-24  
 > Test type: author self-test  
 > Verdict: `PASS`  
-> Independent verification: `NOT YET EXECUTED`
+> Clean-clone reproduction: `PASS`  
+> Third-party independent verification: `NOT YET EXECUTED`
 
 ## Environment
 
@@ -27,6 +28,7 @@
 | Explicit version / latest rejection | PASS |
 | UNKNOWN preservation | PASS |
 | Observer/Engine project isolation | PASS |
+| Gitee clean-clone reproduction | PASS |
 
 Synthetic fixture canonical SHA-256:
 
@@ -38,6 +40,19 @@ Synthetic fixture canonical SHA-256:
 
 The local validator executes the explicitly used K0 subset of JSON Schema keywords and audits the Draft 2020-12 dialect declaration. It is not represented as a complete general-purpose JSON Schema implementation.
 
+## Reproduction identity
+
+- Candidate commit: `c8dbb5b7d2cb5ad4be9bc5e15d469041d0fb1a48`
+- Remote: Gitee `master`
+- Exact detached checkout: PASS
+- Remote head match: PASS
+- Worktree clean after verification: PASS
+
+This reproduction was executed by the implementing Codex instance from a clean
+remote clone. It is evidence of reproducibility, but it is not represented as
+an independent third-party acceptance.
+
 ## Next gate
 
-Push an exact candidate commit, clone it into a clean directory, run `scripts/verify-k0-01.ps1`, compare the remote commit, confirm a clean worktree, and publish an independent verification report. No K0-02 implementation may start before this reproduction succeeds.
+Freeze K0-01 behavior and hand the exact candidate to another AI instance or a
+human verifier. No release may be declared before independent verification.
