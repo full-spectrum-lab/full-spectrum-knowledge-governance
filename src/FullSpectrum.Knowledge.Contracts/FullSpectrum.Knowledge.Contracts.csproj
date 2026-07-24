@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Versioned contracts and deterministic identities for Full Spectrum Knowledge Governance.</Description>
+    <RootNamespace>FullSpectrum.Knowledge.Contracts</RootNamespace>
+    <AssemblyName>FullSpectrum.Knowledge.Contracts</AssemblyName>
+  </PropertyGroup>
+</Project>

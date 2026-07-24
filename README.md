@@ -1,41 +1,52 @@
-# full-spectrum-knowledge-governance
+# Full Spectrum Knowledge Governance
 
-#### 介绍
-独立的“知识供应与治理系统”，Observer 只是其消费者之一。
-建议建立：
-Gitee：内部研发、完整设计、评审、版本规划和测试证据。
-GitHub：正式公开代码、公开契约、合成案例和可复现版本。
-独立 Wiki：需求、架构、K0–K6 路线、Gate 和 AI 接力记录。
+独立、本地优先的知识供应与治理系统。项目将知识材料治理为具有身份、精确版本、生命周期、内容摘要、适用条件、审计记录和重放能力的不可变依据。
 
-#### 软件架构
-软件架构说明
+> 当前状态：`K0-01 IMPLEMENTED / NOT YET INDEPENDENTLY VERIFIED / NOT RELEASED`
 
+## 边界
 
-#### 安装教程
+- 本仓库独立于 Full Spectrum Observer 和 Engine。
+- Observer v0.4 是未来的冻结消费者；本项目只能通过外部 Adapter 适配。
+- 本项目不得修改 Observer 需求、产品代码、Schema、测试基线或 Engine。
+- K0-01 不包含数据库、HTTP API、动态抓取、LLM、向量数据库、真实行业知识或 Skill。
+- `examples/` 中所有内容均为合成测试数据，不代表真实法规或专业结论。
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+## K0-01 能力
 
-#### 使用说明
+- 独立 .NET 10 工程；
+- 核心契约和生命周期枚举；
+- JSON Schema Draft 2020-12 文档；
+- 确定性规范 JSON 与 SHA-256 Digest；
+- 序列化往返和 Schema 子集验证；
+- 无第三方 NuGet 依赖；
+- 离线 TestHost 与自动化测试。
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+## 构建和验证
 
-#### 参与贡献
+要求 .NET SDK `10.0.301`：
 
-1.  Fork 本仓库
-2.  新建 Feat_xxx 分支
-3.  提交代码
-4.  新建 Pull Request
+```powershell
+dotnet restore FullSpectrum.Knowledge.slnx --locked-mode
+dotnet build FullSpectrum.Knowledge.slnx -c Release --no-restore
+dotnet run --project tests/FullSpectrum.Knowledge.Tests -c Release --no-build
+dotnet run --project src/FullSpectrum.Knowledge.TestHost -c Release --no-build -- verify
+```
 
+TestHost 示例：
 
-#### 特技
+```powershell
+dotnet run --project src/FullSpectrum.Knowledge.TestHost -- digest examples/k0-01/knowledge-pack.synthetic.json
+dotnet run --project src/FullSpectrum.Knowledge.TestHost -- validate examples/k0-01/knowledge-pack.synthetic.json schemas/knowledge/v1.0/knowledge-pack.schema.json
+```
 
-1.  使用 Readme\_XXX.md 来支持不同的语言，例如 Readme\_en.md, Readme\_zh.md
-2.  Gitee 官方博客 [blog.gitee.com](https://blog.gitee.com)
-3.  你可以 [https://gitee.com/explore](https://gitee.com/explore) 这个地址来了解 Gitee 上的优秀开源项目
-4.  [GVP](https://gitee.com/gvp) 全称是 Gitee 最有价值开源项目，是综合评定出的优秀开源项目
-5.  Gitee 官方提供的使用手册 [https://gitee.com/help](https://gitee.com/help)
-6.  Gitee 封面人物是一档用来展示 Gitee 会员风采的栏目 [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
+## 文档
+
+- [Gitee Wiki](https://gitee.com/full-spectrum/full-spectrum-knowledge-governance/wikis/Home)
+- [K0-01实现报告](docs/reports/K0-01_IMPLEMENTATION_REPORT.md)
+- [K0-01测试报告](docs/reports/K0-01_TEST_REPORT.md)
+- [项目边界ADR](docs/adr/ADR-001-project-boundary.md)
+
+## 许可证
+
+`MulanPSL-2.0 OR Apache-2.0`。接收者可任选其一。

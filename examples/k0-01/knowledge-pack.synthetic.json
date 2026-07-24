@@ -1,0 +1,26 @@
+{
+  "contract_version": "knowledge-contract/1.0.0",
+  "knowledge_id": "KG-DEMO-EARBUDS",
+  "version": "0.1.0",
+  "state": "RELEASED",
+  "title": "Synthetic Wireless Earbuds Engineering Fixture",
+  "description": "Synthetic fixture for K0 contract verification only; it contains no real regulatory knowledge.",
+  "artifacts": [
+    {
+      "artifact_id": "ART-SYNTHETIC-001",
+      "media_type": "application/json",
+      "size": 2,
+      "digest": {
+        "algorithm": "SHA-256",
+        "value": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+      },
+      "relative_path": "content.synthetic.json"
+    }
+  ],
+  "scope": {
+    "domain": "CONSUMER_ELECTRONICS",
+    "fixture_status": "SYNTHETIC_ONLY",
+    "region": "EU"
+  },
+  "created_at_utc": "2026-07-24T00:00:00+00:00"
+}

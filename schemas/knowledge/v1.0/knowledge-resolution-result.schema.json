@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://full-spectrum-lab.example/schemas/knowledge/v1.0/knowledge-resolution-result.schema.json",
+  "title": "Knowledge Resolution Result",
+  "type": "object",
+  "required": [
+    "contract_version",
+    "resolution_id",
+    "request_id",
+    "mode",
+    "status",
+    "selected",
+    "excluded",
+    "unresolved",
+    "unknowns",
+    "result_digest"
+  ],
+  "properties": {
+    "contract_version": { "const": "knowledge-contract/1.0.0" },
+    "resolution_id": { "type": "string", "minLength": 1 },
+    "request_id": { "type": "string", "minLength": 1 },
+    "mode": { "enum": ["FIXED_ONLY", "DYNAMIC_ONLY", "HYBRID"] },
+    "status": { "enum": ["SUCCEEDED", "PARTIAL", "FAILED"] },
+    "selected": { "type": "array" },
+    "excluded": { "type": "array" },
+    "unresolved": { "type": "array" },
+    "unknowns": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "result_digest": {
+      "type": "object",
+      "required": ["algorithm", "value"],
+      "properties": {
+        "algorithm": { "const": "SHA-256" },
+        "value": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

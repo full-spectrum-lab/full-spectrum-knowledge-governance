@@ -1,0 +1,11 @@
+bin/
+obj/
+.vs/
+.idea/
+TestResults/
+artifacts/local/
+.dotnet-home/
+*.user
+*.suo
+*.tmp
+*.log
