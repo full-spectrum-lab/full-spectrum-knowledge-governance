@@ -46,7 +46,17 @@ public static class SchemaSubsetValidator
 
         if (schema.TryGetProperty("type", out var type))
         {
-            ValidateType(instance, type.GetString() ?? string.Empty, path, errors);
+            if (type.ValueKind == JsonValueKind.Array)
+            {
+                var accepted = type.EnumerateArray()
+                    .Select(item => item.GetString() ?? string.Empty)
+                    .Any(expected => IsType(instance, expected));
+                if (!accepted) errors.Add($"{path}: value does not match any allowed type.");
+            }
+            else
+            {
+                ValidateType(instance, type.GetString() ?? string.Empty, path, errors);
+            }
         }
 
         if (instance.ValueKind == JsonValueKind.Object)
@@ -130,7 +140,15 @@ public static class SchemaSubsetValidator
 
     private static void ValidateType(JsonElement instance, string expected, string path, List<string> errors)
     {
-        var valid = expected switch
+        var valid = IsType(instance, expected);
+        if (!valid)
+        {
+            errors.Add($"{path}: expected type {expected}, got {instance.ValueKind}.");
+        }
+    }
+
+    private static bool IsType(JsonElement instance, string expected) =>
+        expected switch
         {
             "object" => instance.ValueKind == JsonValueKind.Object,
             "array" => instance.ValueKind == JsonValueKind.Array,
@@ -141,9 +159,4 @@ public static class SchemaSubsetValidator
             "null" => instance.ValueKind == JsonValueKind.Null,
             _ => true
         };
-        if (!valid)
-        {
-            errors.Add($"{path}: expected type {expected}, got {instance.ValueKind}.");
-        }
-    }
 }

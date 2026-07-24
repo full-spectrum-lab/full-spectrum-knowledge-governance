@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/FullSpectrum.Knowledge.Contracts/FullSpectrum.Knowledge.Contracts.csproj" />
+    <Project Path="src/FullSpectrum.Knowledge.Storage/FullSpectrum.Knowledge.Storage.csproj" />
     <Project Path="src/FullSpectrum.Knowledge.TestHost/FullSpectrum.Knowledge.TestHost.csproj" />
   </Folder>
   <Folder Name="/tests/">

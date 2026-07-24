@@ -1,5 +1,6 @@
 using System.Text.Json;
 using FullSpectrum.Knowledge.Contracts;
+using FullSpectrum.Knowledge.Storage;
 
 namespace FullSpectrum.Knowledge.Tests;
 
@@ -22,7 +23,18 @@ internal static class Program
         ("Schema rejects a missing required property", MissingRequiredProperty),
         ("Schema rejects an additional property", AdditionalProperty),
         ("Schema rejects latest as a version", SchemaRejectsLatest),
-        ("Repository has no Observer or Engine project references", UpstreamIsolation)
+        ("Repository has no Observer or Engine project references", UpstreamIsolation),
+        ("Registry persists a draft across restart", RegistryPersists),
+        ("Registry rejects exact identity overwrite", RegistryRejectsOverwrite),
+        ("Artifact store rejects digest mismatch", ArtifactDigestMismatch),
+        ("Lifecycle follows draft review release revoke", LifecycleWorkflow),
+        ("Lifecycle rejects an invalid release", LifecycleRejectsInvalidRelease),
+        ("Released artifact remains readable after revoke", RevokedArtifactReadable),
+        ("Audit records every governance transition", AuditCompleteness),
+        ("Replay reconstructs historical state", ReplayHistoricalState),
+        ("Registry keeps exact versions independent", ExactVersionsIndependent),
+        ("Registry reports missing identity", MissingIdentity),
+        ("Audit event conforms to its schema", AuditEventSchema)
     ];
 
     private static int Main()
@@ -150,6 +162,147 @@ internal static class Program
         }
     }
 
+    private static void RegistryPersists()
+    {
+        using var fixture = new RegistryFixture();
+        fixture.Register();
+        fixture.Restart();
+        Equal(KnowledgeLifecycleState.Draft, fixture.Registry.Get(fixture.Id, fixture.Version).State);
+        Equal("{}", System.Text.Encoding.UTF8.GetString(
+            fixture.Registry.ReadArtifact(fixture.Id, fixture.Version, "ART-001")));
+    }
+
+    private static void RegistryRejectsOverwrite()
+    {
+        using var fixture = new RegistryFixture();
+        fixture.Register();
+        Throws<KnowledgeConflictException>(() => fixture.Register());
+        Equal(1, fixture.Registry.Audit(fixture.Id, fixture.Version).Count);
+    }
+
+    private static void ArtifactDigestMismatch()
+    {
+        using var fixture = new RegistryFixture();
+        var pack = fixture.Pack() with
+        {
+            Artifacts =
+            [
+                new KnowledgeArtifact(
+                    "ART-001",
+                    "application/json",
+                    2,
+                    DigestRef.Sha256(new string('0', 64)),
+                    "content.synthetic.json")
+            ]
+        };
+        Throws<ArgumentException>(() => fixture.Registry.Register(
+            pack,
+            [new ArtifactRegistration("ART-001", "{}"u8.ToArray())],
+            "test-author",
+            fixture.At));
+    }
+
+    private static void LifecycleWorkflow()
+    {
+        using var fixture = new RegistryFixture();
+        fixture.Register();
+        Equal(KnowledgeLifecycleState.ReviewRequired, fixture.Registry.SubmitReview(
+            fixture.Id, fixture.Version, "reviewer", fixture.At.AddMinutes(1)).State);
+        Equal(KnowledgeLifecycleState.Released, fixture.Registry.Release(
+            fixture.Id, fixture.Version, "publisher", fixture.At.AddMinutes(2)).State);
+        Equal(KnowledgeLifecycleState.Revoked, fixture.Registry.Revoke(
+            fixture.Id, fixture.Version, "publisher", fixture.At.AddMinutes(3)).State);
+    }
+
+    private static void LifecycleRejectsInvalidRelease()
+    {
+        using var fixture = new RegistryFixture();
+        fixture.Register();
+        Throws<KnowledgeConflictException>(() => fixture.Registry.Release(
+            fixture.Id, fixture.Version, "publisher", fixture.At.AddMinutes(1)));
+        Equal(KnowledgeLifecycleState.Draft, fixture.Registry.Get(fixture.Id, fixture.Version).State);
+    }
+
+    private static void RevokedArtifactReadable()
+    {
+        using var fixture = new RegistryFixture();
+        fixture.Register();
+        fixture.Registry.SubmitReview(fixture.Id, fixture.Version, "reviewer", fixture.At.AddMinutes(1));
+        fixture.Registry.Release(fixture.Id, fixture.Version, "publisher", fixture.At.AddMinutes(2));
+        var before = fixture.Registry.ReadArtifact(fixture.Id, fixture.Version, "ART-001");
+        fixture.Registry.Revoke(fixture.Id, fixture.Version, "publisher", fixture.At.AddMinutes(3));
+        var after = fixture.Registry.ReadArtifact(fixture.Id, fixture.Version, "ART-001");
+        True(before.AsSpan().SequenceEqual(after));
+    }
+
+    private static void AuditCompleteness()
+    {
+        using var fixture = new RegistryFixture();
+        fixture.Register();
+        fixture.Registry.SubmitReview(fixture.Id, fixture.Version, "reviewer", fixture.At.AddMinutes(1));
+        fixture.Registry.Release(fixture.Id, fixture.Version, "publisher", fixture.At.AddMinutes(2));
+        fixture.Registry.Revoke(fixture.Id, fixture.Version, "publisher", fixture.At.AddMinutes(3));
+        var events = fixture.Registry.Audit(fixture.Id, fixture.Version);
+        Equal(4, events.Count);
+        Equal("REGISTERED", events[0].EventType);
+        Equal("REVIEW_REQUESTED", events[1].EventType);
+        Equal("RELEASED", events[2].EventType);
+        Equal("REVOKED", events[3].EventType);
+        True(events.Zip(events.Skip(1), (left, right) => left.Sequence < right.Sequence).All(value => value));
+    }
+
+    private static void ReplayHistoricalState()
+    {
+        using var fixture = new RegistryFixture();
+        fixture.Register();
+        fixture.Registry.SubmitReview(fixture.Id, fixture.Version, "reviewer", fixture.At.AddMinutes(1));
+        fixture.Registry.Release(fixture.Id, fixture.Version, "publisher", fixture.At.AddMinutes(2));
+        var sequence = fixture.Registry.Audit(fixture.Id, fixture.Version)[1].Sequence;
+        var replay = fixture.Registry.Replay(fixture.Id, fixture.Version, sequence);
+        Equal(KnowledgeLifecycleState.ReviewRequired, replay.State);
+        Equal(2, replay.Events.Count);
+    }
+
+    private static void ExactVersionsIndependent()
+    {
+        using var fixture = new RegistryFixture();
+        fixture.Register();
+        var second = fixture.Pack() with { Version = new KnowledgeVersion("0.2.0") };
+        fixture.Registry.Register(
+            second,
+            [new ArtifactRegistration("ART-001", "{}"u8.ToArray())],
+            "test-author",
+            fixture.At.AddMinutes(1));
+        fixture.Registry.SubmitReview(fixture.Id, fixture.Version, "reviewer", fixture.At.AddMinutes(2));
+        Equal(KnowledgeLifecycleState.ReviewRequired, fixture.Registry.Get(fixture.Id, fixture.Version).State);
+        Equal(KnowledgeLifecycleState.Draft, fixture.Registry.Get(fixture.Id, second.Version).State);
+    }
+
+    private static void MissingIdentity()
+    {
+        using var fixture = new RegistryFixture();
+        Throws<KnowledgeNotFoundException>(() => fixture.Registry.Get(fixture.Id, fixture.Version));
+    }
+
+    private static void AuditEventSchema()
+    {
+        var audit = new KnowledgeAuditEvent(
+            1,
+            new KnowledgeId("KG-DEMO-REGISTRY"),
+            new KnowledgeVersion("0.1.0"),
+            "REGISTERED",
+            null,
+            KnowledgeLifecycleState.Draft,
+            "author",
+            DateTimeOffset.Parse("2026-07-24T00:00:00Z"),
+            new Dictionary<string, string>());
+        var errors = FullSpectrum.Knowledge.TestHost.SchemaSubsetValidator.Validate(
+            JsonSerializer.Serialize(audit, KnowledgeJson.Options),
+            File.ReadAllText(Path.Combine(
+                Root(), "schemas", "knowledge", "v1.0", "knowledge-audit-event.schema.json")));
+        Equal(0, errors.Count);
+    }
+
     private static IReadOnlyList<string> ValidateFixture() => Validate(File.ReadAllText(FixturePath()));
 
     private static IReadOnlyList<string> Validate(string instance)
@@ -220,5 +373,60 @@ internal static class Program
             return;
         }
         throw new InvalidOperationException($"Expected {typeof(T).Name}.");
+    }
+
+    private sealed class RegistryFixture : IDisposable
+    {
+        private readonly string root = Path.Combine(Path.GetTempPath(), $"fskg-{Guid.NewGuid():N}");
+        internal KnowledgeId Id { get; } = new("KG-DEMO-REGISTRY");
+        internal KnowledgeVersion Version { get; } = new("0.1.0");
+        internal DateTimeOffset At { get; } = DateTimeOffset.Parse("2026-07-24T00:00:00Z");
+        internal KnowledgeRegistry Registry { get; private set; }
+
+        internal RegistryFixture()
+        {
+            Directory.CreateDirectory(root);
+            Registry = Open();
+        }
+
+        internal KnowledgePack Pack() => new(
+            "knowledge-contract/1.0.0",
+            Id,
+            Version,
+            KnowledgeLifecycleState.Draft,
+            "Synthetic registry fixture",
+            "No real regulatory content.",
+            [
+                new KnowledgeArtifact(
+                    "ART-001",
+                    "application/json",
+                    2,
+                    DigestRef.Sha256("44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"),
+                    "content.synthetic.json")
+            ],
+            new Dictionary<string, string> { ["fixture_status"] = "SYNTHETIC_ONLY" },
+            At);
+
+        internal void Register() => Registry.Register(
+            Pack(),
+            [new ArtifactRegistration("ART-001", "{}"u8.ToArray())],
+            "test-author",
+            At);
+
+        internal void Restart()
+        {
+            Registry.Dispose();
+            Registry = Open();
+        }
+
+        private KnowledgeRegistry Open() => new(
+            Path.Combine(root, "metadata.sqlite3"),
+            Path.Combine(root, "artifacts"));
+
+        public void Dispose()
+        {
+            Registry.Dispose();
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
     }
 }

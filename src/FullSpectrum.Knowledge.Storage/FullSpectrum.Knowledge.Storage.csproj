@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Local SQLite metadata, immutable artifact storage, audit, and replay for Knowledge Governance.</Description>
+    <RootNamespace>FullSpectrum.Knowledge.Storage</RootNamespace>
+    <AssemblyName>FullSpectrum.Knowledge.Storage</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../FullSpectrum.Knowledge.Contracts/FullSpectrum.Knowledge.Contracts.csproj" />
+  </ItemGroup>
+</Project>

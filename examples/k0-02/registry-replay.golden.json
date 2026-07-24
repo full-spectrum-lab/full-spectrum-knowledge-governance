@@ -1,0 +1,40 @@
+{
+  "knowledge_id": "KG-DEMO-REGISTRY",
+  "version": "0.1.0",
+  "final_state": "REVOKED",
+  "artifact_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+  "events": [
+    {
+      "sequence": 1,
+      "event_type": "REGISTERED",
+      "from_state": null,
+      "to_state": "DRAFT",
+      "actor": "author",
+      "occurred_at_utc": "2026-07-24T00:00:00.0000000+00:00"
+    },
+    {
+      "sequence": 2,
+      "event_type": "REVIEW_REQUESTED",
+      "from_state": "DRAFT",
+      "to_state": "REVIEW_REQUIRED",
+      "actor": "reviewer",
+      "occurred_at_utc": "2026-07-24T00:01:00.0000000+00:00"
+    },
+    {
+      "sequence": 3,
+      "event_type": "RELEASED",
+      "from_state": "REVIEW_REQUIRED",
+      "to_state": "RELEASED",
+      "actor": "publisher",
+      "occurred_at_utc": "2026-07-24T00:02:00.0000000+00:00"
+    },
+    {
+      "sequence": 4,
+      "event_type": "REVOKED",
+      "from_state": "RELEASED",
+      "to_state": "REVOKED",
+      "actor": "publisher",
+      "occurred_at_utc": "2026-07-24T00:03:00.0000000+00:00"
+    }
+  ]
+}

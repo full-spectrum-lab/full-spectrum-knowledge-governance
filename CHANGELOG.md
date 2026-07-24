@@ -11,3 +11,7 @@ All notable changes will be documented here.
 - JSON Schema Draft 2020-12 contract documents.
 - Deterministic canonical JSON and SHA-256 digest service.
 - Offline TestHost, synthetic fixture, and automated test runner.
+- K0-01 third-party independent verification accepted.
+- K0-02 SQLite metadata registry and content-addressed local Artifact Store.
+- Lifecycle transition gates, append-only audit, historical replay, and restart persistence.
+- K0-02 Golden CASE, audit-event schema, and offline verification command.

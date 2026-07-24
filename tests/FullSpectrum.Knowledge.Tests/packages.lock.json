@@ -5,10 +5,17 @@
       "fullspectrum.knowledge.contracts": {
         "type": "Project"
       },
-      "fullspectrum.knowledge.testhost": {
+      "fullspectrum.knowledge.storage": {
         "type": "Project",
         "dependencies": {
           "FullSpectrum.Knowledge.Contracts": "[1.0.0, )"
+        }
+      },
+      "fullspectrum.knowledge.testhost": {
+        "type": "Project",
+        "dependencies": {
+          "FullSpectrum.Knowledge.Contracts": "[1.0.0, )",
+          "FullSpectrum.Knowledge.Storage": "[1.0.0, )"
         }
       }
     }

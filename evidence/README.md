@@ -15,3 +15,6 @@ evidence/{stage}/{candidate}/{attempt-id}/
 ```
 
 Failed attempts must be retained. Self-test is not independent verification.
+
+K0-02 evidence includes `examples/k0-02/registry-replay.golden.json`, the
+`verify-k0-02` TestHost command, and reports under `docs/reports`.
