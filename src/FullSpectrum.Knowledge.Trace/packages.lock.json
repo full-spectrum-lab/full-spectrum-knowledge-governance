@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net10.0": {
+      "fullspectrum.knowledge.contracts": {
+        "type": "Project"
+      },
+      "fullspectrum.knowledge.storage": {
+        "type": "Project",
+        "dependencies": {
+          "FullSpectrum.Knowledge.Contracts": "[1.0.0, )"
+        }
+      }
+    }
+  }
+}

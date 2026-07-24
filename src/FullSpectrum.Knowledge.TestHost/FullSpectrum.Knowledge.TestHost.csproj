@@ -8,5 +8,6 @@
     <ProjectReference Include="../FullSpectrum.Knowledge.Contracts/FullSpectrum.Knowledge.Contracts.csproj" />
     <ProjectReference Include="../FullSpectrum.Knowledge.Fixed/FullSpectrum.Knowledge.Fixed.csproj" />
     <ProjectReference Include="../FullSpectrum.Knowledge.Storage/FullSpectrum.Knowledge.Storage.csproj" />
+    <ProjectReference Include="../FullSpectrum.Knowledge.Trace/FullSpectrum.Knowledge.Trace.csproj" />
   </ItemGroup>
 </Project>

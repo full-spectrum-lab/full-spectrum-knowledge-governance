@@ -42,7 +42,13 @@ public sealed class KnowledgeRegistry : IDisposable
               result_json TEXT NOT NULL,
               result_digest TEXT NOT NULL
             );
-            PRAGMA user_version=2;
+            CREATE TABLE IF NOT EXISTS resolution_evidence (
+              evidence_id TEXT PRIMARY KEY,
+              resolution_id TEXT NOT NULL UNIQUE,
+              evidence_json TEXT NOT NULL,
+              evidence_digest TEXT NOT NULL
+            );
+            PRAGMA user_version=3;
             """);
     }
 
@@ -231,6 +237,53 @@ public sealed class KnowledgeRegistry : IDisposable
         }
         return JsonSerializer.Deserialize<KnowledgeResolutionResult>(rows[0], KnowledgeJson.Options)
             ?? throw new InvalidDataException("Stored resolution JSON is invalid.");
+    }
+
+    public KnowledgeResolutionEvidence SaveEvidence(KnowledgeResolutionEvidence evidence)
+    {
+        _ = GetResolution(evidence.ResolutionId);
+        var json = DeterministicJson.Canonicalize(
+            JsonSerializer.Serialize(evidence, KnowledgeJson.Options));
+        return database.Transaction(() =>
+        {
+            var rows = database.Query(
+                "SELECT evidence_json FROM resolution_evidence WHERE resolution_id=?;",
+                row => row.Text(0),
+                evidence.ResolutionId);
+            if (rows.Count != 0)
+            {
+                if (!string.Equals(rows[0], json, StringComparison.Ordinal))
+                {
+                    throw new KnowledgeConflictException(
+                        $"Resolution '{evidence.ResolutionId}' already has different evidence.");
+                }
+                return JsonSerializer.Deserialize<KnowledgeResolutionEvidence>(
+                    rows[0], KnowledgeJson.Options)
+                    ?? throw new InvalidDataException("Stored evidence JSON is invalid.");
+            }
+            database.Execute(
+                """
+                INSERT INTO resolution_evidence
+                  (evidence_id,resolution_id,evidence_json,evidence_digest)
+                VALUES(?,?,?,?);
+                """,
+                evidence.EvidenceId,
+                evidence.ResolutionId,
+                json,
+                evidence.EvidenceDigest.Value);
+            return evidence;
+        });
+    }
+
+    public KnowledgeResolutionEvidence GetEvidence(string evidenceId)
+    {
+        var rows = database.Query(
+            "SELECT evidence_json FROM resolution_evidence WHERE evidence_id=?;",
+            row => row.Text(0),
+            evidenceId);
+        if (rows.Count == 0) throw new KnowledgeNotFoundException($"Evidence '{evidenceId}' was not found.");
+        return JsonSerializer.Deserialize<KnowledgeResolutionEvidence>(rows[0], KnowledgeJson.Options)
+            ?? throw new InvalidDataException("Stored evidence JSON is invalid.");
     }
 
     private KnowledgePack Transition(

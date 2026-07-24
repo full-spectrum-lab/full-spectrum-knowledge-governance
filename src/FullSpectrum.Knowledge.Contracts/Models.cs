@@ -52,3 +52,40 @@ public sealed record KnowledgeResolutionResult(
     IReadOnlyList<KnowledgeBinding> Unresolved,
     IReadOnlyList<string> Unknowns,
     DigestRef ResultDigest);
+
+public sealed record SlotCoverageExpectation(string SlotId, KnowledgeGranularity RequiredGranularity);
+
+public sealed record KnowledgeMatchTrace(
+    string TraceId,
+    string ResolutionId,
+    string SlotId,
+    KnowledgeMatchOutcome Outcome,
+    string? BindingId,
+    KnowledgeId? KnowledgeId,
+    KnowledgeVersion? Version,
+    KnowledgeGranularity? ActualGranularity,
+    IReadOnlyList<string> ReasonCodes);
+
+public sealed record SlotCoverage(
+    string SlotId,
+    KnowledgeGranularity RequiredGranularity,
+    KnowledgeGranularity? ActualGranularity,
+    SlotCoverageStatus Status,
+    IReadOnlyList<string> ReasonCodes);
+
+public sealed record MissingKnowledgeSlot(string SlotId, string ReasonCode);
+
+public sealed record CoverageAssessment(
+    string ResolutionId,
+    OverallCoverageStatus OverallStatus,
+    IReadOnlyList<SlotCoverage> Slots,
+    IReadOnlyList<MissingKnowledgeSlot> MissingSlots);
+
+public sealed record KnowledgeResolutionEvidence(
+    string ContractVersion,
+    string EvidenceId,
+    string ResolutionId,
+    IReadOnlyList<KnowledgeMatchTrace> Traces,
+    CoverageAssessment Coverage,
+    IReadOnlyList<string> Explain,
+    DigestRef EvidenceDigest);

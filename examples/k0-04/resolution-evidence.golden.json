@@ -1,0 +1,63 @@
+{
+  "contract_version": "knowledge-contract/1.0.0",
+  "evidence_id": "KRE-9A7276A366FFC5E001F2",
+  "resolution_id": "KRS-C5769B9C7D2AD62F754A",
+  "traces": [
+    {
+      "trace_id": "KMT-1ED8B2D4C3FB726397C4",
+      "resolution_id": "KRS-C5769B9C7D2AD62F754A",
+      "slot_id": "SLOT-MISSING",
+      "outcome": "UNRESOLVED",
+      "binding_id": "BIND-SLOT-MISSING-UNRESOLVED",
+      "knowledge_id": null,
+      "version": null,
+      "actual_granularity": null,
+      "reason_codes": ["REQUIRED_SLOT_UNBOUND"]
+    },
+    {
+      "trace_id": "KMT-69D7E8B9747DD89D12D4",
+      "resolution_id": "KRS-C5769B9C7D2AD62F754A",
+      "slot_id": "SLOT-SAFETY",
+      "outcome": "SELECTED",
+      "binding_id": "BIND-SLOT-SAFETY-KG-DEMO-TRACE-1.0.0-ART-SAFETY",
+      "knowledge_id": "KG-DEMO-TRACE",
+      "version": "1.0.0",
+      "actual_granularity": "INDUSTRY",
+      "reason_codes": ["EXACT_RELEASED_MATCH"]
+    }
+  ],
+  "coverage": {
+    "resolution_id": "KRS-C5769B9C7D2AD62F754A",
+    "overall_status": "PARTIAL",
+    "slots": [
+      {
+        "slot_id": "SLOT-MISSING",
+        "required_granularity": "CATEGORY",
+        "actual_granularity": null,
+        "status": "MISSING",
+        "reason_codes": ["REQUIRED_SLOT_UNBOUND"]
+      },
+      {
+        "slot_id": "SLOT-SAFETY",
+        "required_granularity": "MODEL",
+        "actual_granularity": "INDUSTRY",
+        "status": "PARTIAL",
+        "reason_codes": ["KNOWLEDGE_GENERALIZED", "INDUSTRY_COMMON_ONLY"]
+      }
+    ],
+    "missing_slots": [
+      {
+        "slot_id": "SLOT-MISSING",
+        "reason_code": "REQUIRED_SLOT_UNBOUND"
+      }
+    ]
+  },
+  "explain": [
+    "SLOT:SLOT-MISSING:REQUIRED=CATEGORY:ACTUAL=UNKNOWN:STATUS=MISSING:REASONS=REQUIRED_SLOT_UNBOUND",
+    "SLOT:SLOT-SAFETY:REQUIRED=MODEL:ACTUAL=INDUSTRY:STATUS=PARTIAL:REASONS=KNOWLEDGE_GENERALIZED,INDUSTRY_COMMON_ONLY"
+  ],
+  "evidence_digest": {
+    "algorithm": "SHA-256",
+    "value": "d59d6137bc237c8c37ca61d24843ced988ed6e9907d82795d595517ad1a4de42"
+  }
+}

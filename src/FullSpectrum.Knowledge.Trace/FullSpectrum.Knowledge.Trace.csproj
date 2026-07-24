@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Deterministic match trace, granularity, coverage, and explain evidence.</Description>
+    <RootNamespace>FullSpectrum.Knowledge.Trace</RootNamespace>
+    <AssemblyName>FullSpectrum.Knowledge.Trace</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../FullSpectrum.Knowledge.Contracts/FullSpectrum.Knowledge.Contracts.csproj" />
+    <ProjectReference Include="../FullSpectrum.Knowledge.Storage/FullSpectrum.Knowledge.Storage.csproj" />
+  </ItemGroup>
+</Project>

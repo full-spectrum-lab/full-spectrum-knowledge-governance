@@ -23,6 +23,14 @@
         "dependencies": {
           "FullSpectrum.Knowledge.Contracts": "[1.0.0, )",
           "FullSpectrum.Knowledge.Fixed": "[1.0.0, )",
+          "FullSpectrum.Knowledge.Storage": "[1.0.0, )",
+          "FullSpectrum.Knowledge.Trace": "[1.0.0, )"
+        }
+      },
+      "fullspectrum.knowledge.trace": {
+        "type": "Project",
+        "dependencies": {
+          "FullSpectrum.Knowledge.Contracts": "[1.0.0, )",
           "FullSpectrum.Knowledge.Storage": "[1.0.0, )"
         }
       }

@@ -4,6 +4,7 @@
     <Project Path="src/FullSpectrum.Knowledge.Fixed/FullSpectrum.Knowledge.Fixed.csproj" />
     <Project Path="src/FullSpectrum.Knowledge.Storage/FullSpectrum.Knowledge.Storage.csproj" />
     <Project Path="src/FullSpectrum.Knowledge.TestHost/FullSpectrum.Knowledge.TestHost.csproj" />
+    <Project Path="src/FullSpectrum.Knowledge.Trace/FullSpectrum.Knowledge.Trace.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/FullSpectrum.Knowledge.Tests/FullSpectrum.Knowledge.Tests.csproj" />

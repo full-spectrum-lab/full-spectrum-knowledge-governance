@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://full-spectrum-lab.example/schemas/knowledge/v1.0/knowledge-resolution-evidence.schema.json",
+  "title": "Knowledge Resolution Evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "evidence_id", "resolution_id", "traces", "coverage", "explain", "evidence_digest"],
+  "properties": {
+    "contract_version": { "const": "knowledge-contract/1.0.0" },
+    "evidence_id": { "type": "string", "minLength": 1 },
+    "resolution_id": { "type": "string", "minLength": 1 },
+    "traces": { "type": "array" },
+    "coverage": { "type": "object" },
+    "explain": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "evidence_digest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "value"],
+      "properties": {
+        "algorithm": { "const": "SHA-256" },
+        "value": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    }
+  }
+}

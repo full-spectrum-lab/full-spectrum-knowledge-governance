@@ -19,3 +19,6 @@ All notable changes will be documented here.
 - K0-03 deterministic `FIXED_ONLY` resolver with exact released-candidate gates.
 - Fail-closed missing/ambiguous resolution, explicit UNKNOWN, persistence, and replay.
 - K0-03 Golden CASE, candidate Schema, nested result Schema, and verification command.
+- K0-03 third-party independent verification accepted.
+- K0-04 deterministic Match Trace, five-level granularity, Coverage and Explain sidecar.
+- Evidence persistence at SQLite schema version 3 and three formal Evidence schemas.

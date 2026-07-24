@@ -2,6 +2,7 @@ using System.Text.Json;
 using FullSpectrum.Knowledge.Contracts;
 using FullSpectrum.Knowledge.Fixed;
 using FullSpectrum.Knowledge.Storage;
+using FullSpectrum.Knowledge.Trace;
 
 namespace FullSpectrum.Knowledge.Tests;
 
@@ -49,7 +50,21 @@ internal static class Program
         ("Fixed resolution rejects request-id payload conflict", FixedRequestConflict),
         ("Fixed candidate conforms to its schema", FixedCandidateSchema),
         ("Fixed result conforms to its schema", FixedResultSchema),
-        ("Fixed resolution rejects an invalid subject digest", FixedRejectsSubjectDigest)
+        ("Fixed resolution rejects an invalid subject digest", FixedRejectsSubjectDigest),
+        ("Trace records selected and unresolved bindings", TraceRecordsBindings),
+        ("Coverage is complete at required granularity", CoverageComplete),
+        ("Coverage reports generalized industry knowledge", CoverageGeneralized),
+        ("Coverage is insufficient when all slots are missing", CoverageInsufficient),
+        ("Coverage preserves unknown granularity", CoverageUnknownGranularity),
+        ("Evidence explain output is deterministic", EvidenceDeterministic),
+        ("Evidence survives registry restart", EvidenceReplayAfterRestart),
+        ("Evidence rejects mismatched expectations", EvidenceRejectsMismatch),
+        ("Evidence prevents overwrite for one resolution", EvidenceRejectsOverwrite),
+        ("Granularity defines five frozen values", GranularityValues),
+        ("Trace preserves resolver reason codes", TracePreservesReasons),
+        ("Match trace conforms to its schema", MatchTraceSchema),
+        ("Coverage conforms to its schema", CoverageSchema),
+        ("Resolution evidence conforms to its schema", ResolutionEvidenceSchema)
     ];
 
     private static int Main()
@@ -461,6 +476,204 @@ internal static class Program
         Throws<ArgumentException>(() => fixture.Resolver.Resolve(request, []));
     }
 
+    private static void TraceRecordsBindings()
+    {
+        using var fixture = new RegistryFixture();
+        fixture.RegisterAndRelease(fixture.Pack());
+        var result = fixture.Resolver.Resolve(
+            fixture.Request() with { RequiredSlots = ["SLOT-SAFETY", "SLOT-MISSING"] },
+            [fixture.Candidate()]);
+        var evidence = fixture.Evidence.Build(
+            result,
+            [
+                new SlotCoverageExpectation("SLOT-SAFETY", KnowledgeGranularity.Model),
+                new SlotCoverageExpectation("SLOT-MISSING", KnowledgeGranularity.Category)
+            ],
+            new Dictionary<string, KnowledgeGranularity>
+            {
+                [result.Selected.Single().BindingId] = KnowledgeGranularity.Model
+            });
+        Equal(2, evidence.Traces.Count);
+        True(evidence.Traces.Any(item => item.Outcome == KnowledgeMatchOutcome.Selected));
+        True(evidence.Traces.Any(item => item.Outcome == KnowledgeMatchOutcome.Unresolved));
+    }
+
+    private static void CoverageComplete()
+    {
+        using var fixture = ReleasedFixture();
+        var result = fixture.Resolver.Resolve(fixture.Request(), [fixture.Candidate()]);
+        var evidence = fixture.Evidence.Build(
+            result,
+            [new SlotCoverageExpectation("SLOT-SAFETY", KnowledgeGranularity.Model)],
+            new Dictionary<string, KnowledgeGranularity>
+            {
+                [result.Selected.Single().BindingId] = KnowledgeGranularity.Feature
+            });
+        Equal(OverallCoverageStatus.Complete, evidence.Coverage.OverallStatus);
+        Equal(SlotCoverageStatus.Covered, evidence.Coverage.Slots.Single().Status);
+    }
+
+    private static void CoverageGeneralized()
+    {
+        using var fixture = ReleasedFixture();
+        var result = fixture.Resolver.Resolve(fixture.Request(), [fixture.Candidate()]);
+        var evidence = fixture.Evidence.Build(
+            result,
+            [new SlotCoverageExpectation("SLOT-SAFETY", KnowledgeGranularity.Model)],
+            new Dictionary<string, KnowledgeGranularity>
+            {
+                [result.Selected.Single().BindingId] = KnowledgeGranularity.Industry
+            });
+        Equal(OverallCoverageStatus.Partial, evidence.Coverage.OverallStatus);
+        True(evidence.Coverage.Slots.Single().ReasonCodes.Contains("KNOWLEDGE_GENERALIZED"));
+        True(evidence.Coverage.Slots.Single().ReasonCodes.Contains("INDUSTRY_COMMON_ONLY"));
+    }
+
+    private static void CoverageInsufficient()
+    {
+        using var fixture = new RegistryFixture();
+        var result = fixture.Resolver.Resolve(fixture.Request(), []);
+        var evidence = fixture.Evidence.Build(
+            result,
+            [new SlotCoverageExpectation("SLOT-SAFETY", KnowledgeGranularity.Category)],
+            new Dictionary<string, KnowledgeGranularity>());
+        Equal(OverallCoverageStatus.Insufficient, evidence.Coverage.OverallStatus);
+        Equal(1, evidence.Coverage.MissingSlots.Count);
+    }
+
+    private static void CoverageUnknownGranularity()
+    {
+        using var fixture = ReleasedFixture();
+        var result = fixture.Resolver.Resolve(fixture.Request(), [fixture.Candidate()]);
+        var evidence = fixture.Evidence.Build(
+            result,
+            [new SlotCoverageExpectation("SLOT-SAFETY", KnowledgeGranularity.Category)],
+            new Dictionary<string, KnowledgeGranularity>());
+        Equal(SlotCoverageStatus.Partial, evidence.Coverage.Slots.Single().Status);
+        Equal("GRANULARITY_UNKNOWN", evidence.Coverage.Slots.Single().ReasonCodes.Single());
+    }
+
+    private static void EvidenceDeterministic()
+    {
+        string BuildOnce()
+        {
+            using var fixture = ReleasedFixture();
+            var result = fixture.Resolver.Resolve(fixture.Request(), [fixture.Candidate()]);
+            var evidence = fixture.Evidence.Build(
+                result,
+                [new SlotCoverageExpectation("SLOT-SAFETY", KnowledgeGranularity.Model)],
+                new Dictionary<string, KnowledgeGranularity>
+                {
+                    [result.Selected.Single().BindingId] = KnowledgeGranularity.Category
+                });
+            return $"{evidence.EvidenceId}|{evidence.EvidenceDigest.Value}|{string.Join('|', evidence.Explain)}";
+        }
+        Equal(BuildOnce(), BuildOnce());
+    }
+
+    private static void EvidenceReplayAfterRestart()
+    {
+        using var fixture = ReleasedFixture();
+        var result = fixture.Resolver.Resolve(fixture.Request(), [fixture.Candidate()]);
+        var evidence = fixture.Evidence.Build(
+            result,
+            [new SlotCoverageExpectation("SLOT-SAFETY", KnowledgeGranularity.Category)],
+            new Dictionary<string, KnowledgeGranularity>
+            {
+                [result.Selected.Single().BindingId] = KnowledgeGranularity.Category
+            });
+        fixture.Restart();
+        Equal(evidence.EvidenceDigest, fixture.Registry.GetEvidence(evidence.EvidenceId).EvidenceDigest);
+    }
+
+    private static void EvidenceRejectsMismatch()
+    {
+        using var fixture = ReleasedFixture();
+        var result = fixture.Resolver.Resolve(fixture.Request(), [fixture.Candidate()]);
+        Throws<ArgumentException>(() => fixture.Evidence.Build(
+            result,
+            [new SlotCoverageExpectation("SLOT-OTHER", KnowledgeGranularity.Category)],
+            new Dictionary<string, KnowledgeGranularity>()));
+    }
+
+    private static void EvidenceRejectsOverwrite()
+    {
+        using var fixture = ReleasedFixture();
+        var result = fixture.Resolver.Resolve(fixture.Request(), [fixture.Candidate()]);
+        fixture.Evidence.Build(
+            result,
+            [new SlotCoverageExpectation("SLOT-SAFETY", KnowledgeGranularity.Category)],
+            new Dictionary<string, KnowledgeGranularity>
+            {
+                [result.Selected.Single().BindingId] = KnowledgeGranularity.Category
+            });
+        Throws<KnowledgeConflictException>(() => fixture.Evidence.Build(
+            result,
+            [new SlotCoverageExpectation("SLOT-SAFETY", KnowledgeGranularity.Model)],
+            new Dictionary<string, KnowledgeGranularity>
+            {
+                [result.Selected.Single().BindingId] = KnowledgeGranularity.Industry
+            }));
+    }
+
+    private static void GranularityValues() => Equal(5, Enum.GetValues<KnowledgeGranularity>().Length);
+
+    private static void TracePreservesReasons()
+    {
+        using var fixture = new RegistryFixture();
+        fixture.Register();
+        var result = fixture.Resolver.Resolve(fixture.Request(), [fixture.Candidate()]);
+        var evidence = fixture.Evidence.Build(
+            result,
+            [new SlotCoverageExpectation("SLOT-SAFETY", KnowledgeGranularity.Category)],
+            new Dictionary<string, KnowledgeGranularity>());
+        True(evidence.Traces.Any(item => item.ReasonCodes.Contains("STATE_NOT_RELEASED")));
+        True(evidence.Traces.Any(item => item.ReasonCodes.Contains("NO_RELEASED_CANDIDATE")));
+    }
+
+    private static RegistryFixture ReleasedFixture()
+    {
+        var fixture = new RegistryFixture();
+        fixture.RegisterAndRelease(fixture.Pack());
+        return fixture;
+    }
+
+    private static KnowledgeResolutionEvidence SyntheticEvidence(RegistryFixture fixture)
+    {
+        var result = fixture.Resolver.Resolve(fixture.Request(), [fixture.Candidate()]);
+        return fixture.Evidence.Build(
+            result,
+            [new SlotCoverageExpectation("SLOT-SAFETY", KnowledgeGranularity.Model)],
+            new Dictionary<string, KnowledgeGranularity>
+            {
+                [result.Selected.Single().BindingId] = KnowledgeGranularity.Category
+            });
+    }
+
+    private static void MatchTraceSchema()
+    {
+        using var fixture = ReleasedFixture();
+        Equal(0, ValidateSchema(
+            JsonSerializer.Serialize(SyntheticEvidence(fixture).Traces.Single(), KnowledgeJson.Options),
+            "knowledge-match-trace.schema.json").Count);
+    }
+
+    private static void CoverageSchema()
+    {
+        using var fixture = ReleasedFixture();
+        Equal(0, ValidateSchema(
+            JsonSerializer.Serialize(SyntheticEvidence(fixture).Coverage, KnowledgeJson.Options),
+            "coverage-assessment.schema.json").Count);
+    }
+
+    private static void ResolutionEvidenceSchema()
+    {
+        using var fixture = ReleasedFixture();
+        Equal(0, ValidateSchema(
+            JsonSerializer.Serialize(SyntheticEvidence(fixture), KnowledgeJson.Options),
+            "knowledge-resolution-evidence.schema.json").Count);
+    }
+
     private static IReadOnlyList<string> ValidateFixture() => Validate(File.ReadAllText(FixturePath()));
 
     private static IReadOnlyList<string> Validate(string instance)
@@ -541,12 +754,14 @@ internal static class Program
         internal DateTimeOffset At { get; } = DateTimeOffset.Parse("2026-07-24T00:00:00Z");
         internal KnowledgeRegistry Registry { get; private set; }
         internal FixedKnowledgeResolver Resolver { get; private set; }
+        internal ResolutionEvidenceBuilder Evidence { get; private set; }
 
         internal RegistryFixture()
         {
             Directory.CreateDirectory(root);
             Registry = Open();
             Resolver = new FixedKnowledgeResolver(Registry);
+            Evidence = new ResolutionEvidenceBuilder(Registry);
         }
 
         internal KnowledgePack Pack() => new(
@@ -605,6 +820,7 @@ internal static class Program
             Registry.Dispose();
             Registry = Open();
             Resolver = new FixedKnowledgeResolver(Registry);
+            Evidence = new ResolutionEvidenceBuilder(Registry);
         }
 
         private KnowledgeRegistry Open() => new(

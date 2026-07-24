@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://full-spectrum-lab.example/schemas/knowledge/v1.0/coverage-assessment.schema.json",
+  "title": "Coverage Assessment",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["resolution_id", "overall_status", "slots", "missing_slots"],
+  "properties": {
+    "resolution_id": { "type": "string", "minLength": 1 },
+    "overall_status": { "enum": ["COMPLETE", "PARTIAL", "INSUFFICIENT"] },
+    "slots": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["slot_id", "required_granularity", "actual_granularity", "status", "reason_codes"],
+        "properties": {
+          "slot_id": { "type": "string", "minLength": 1 },
+          "required_granularity": { "enum": ["INDUSTRY", "CATEGORY", "SERIES", "MODEL", "FEATURE"] },
+          "actual_granularity": { "enum": [null, "INDUSTRY", "CATEGORY", "SERIES", "MODEL", "FEATURE"] },
+          "status": { "enum": ["COVERED", "PARTIAL", "MISSING"] },
+          "reason_codes": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+        }
+      }
+    },
+    "missing_slots": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["slot_id", "reason_code"],
+        "properties": {
+          "slot_id": { "type": "string", "minLength": 1 },
+          "reason_code": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

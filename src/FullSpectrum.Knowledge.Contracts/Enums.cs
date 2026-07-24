@@ -30,3 +30,33 @@ public enum KnowledgeResolutionStatus
     Partial,
     Failed
 }
+
+public enum KnowledgeGranularity
+{
+    Industry,
+    Category,
+    Series,
+    Model,
+    Feature
+}
+
+public enum KnowledgeMatchOutcome
+{
+    Selected,
+    Excluded,
+    Unresolved
+}
+
+public enum SlotCoverageStatus
+{
+    Covered,
+    Partial,
+    Missing
+}
+
+public enum OverallCoverageStatus
+{
+    Complete,
+    Partial,
+    Insufficient
+}

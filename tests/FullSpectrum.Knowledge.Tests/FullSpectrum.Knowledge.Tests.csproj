@@ -9,5 +9,6 @@
     <ProjectReference Include="../../src/FullSpectrum.Knowledge.Fixed/FullSpectrum.Knowledge.Fixed.csproj" />
     <ProjectReference Include="../../src/FullSpectrum.Knowledge.Storage/FullSpectrum.Knowledge.Storage.csproj" />
     <ProjectReference Include="../../src/FullSpectrum.Knowledge.TestHost/FullSpectrum.Knowledge.TestHost.csproj" />
+    <ProjectReference Include="../../src/FullSpectrum.Knowledge.Trace/FullSpectrum.Knowledge.Trace.csproj" />
   </ItemGroup>
 </Project>

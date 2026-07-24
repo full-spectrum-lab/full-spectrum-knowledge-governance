@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://full-spectrum-lab.example/schemas/knowledge/v1.0/knowledge-match-trace.schema.json",
+  "title": "Knowledge Match Trace",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["trace_id", "resolution_id", "slot_id", "outcome", "binding_id", "knowledge_id", "version", "actual_granularity", "reason_codes"],
+  "properties": {
+    "trace_id": { "type": "string", "minLength": 1 },
+    "resolution_id": { "type": "string", "minLength": 1 },
+    "slot_id": { "type": "string", "minLength": 1 },
+    "outcome": { "enum": ["SELECTED", "EXCLUDED", "UNRESOLVED"] },
+    "binding_id": { "type": ["string", "null"] },
+    "knowledge_id": { "type": ["string", "null"] },
+    "version": { "type": ["string", "null"] },
+    "actual_granularity": { "enum": [null, "INDUSTRY", "CATEGORY", "SERIES", "MODEL", "FEATURE"] },
+    "reason_codes": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+  }
+}

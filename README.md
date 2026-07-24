@@ -2,7 +2,7 @@
 
 独立、本地优先的知识供应与治理系统。项目将知识材料治理为具有身份、精确版本、生命周期、内容摘要、适用条件、审计记录和重放能力的不可变依据。
 
-> 当前状态：`K0-01/K0-02 INDEPENDENTLY VERIFIED / K0-03 IMPLEMENTED / AWAITING CLEAN-CLONE REPRODUCTION / NOT RELEASED`
+> 当前状态：`K0-01..K0-03 INDEPENDENTLY VERIFIED / K0-04 IMPLEMENTED / AWAITING CLEAN-CLONE REPRODUCTION / NOT RELEASED`
 
 ## 边界
 
@@ -41,6 +41,15 @@
 - 确定性 Resolution ID、Result Digest 和输出顺序；
 - 解析结果持久化，重启后按 Resolution ID 回放。
 
+## K0-04 能力
+
+- 独立 Match Trace、Coverage、Missing Slot 和 Explain Evidence Sidecar；
+- `INDUSTRY/CATEGORY/SERIES/MODEL/FEATURE` 五级颗粒度；
+- `COMPLETE/PARTIAL/INSUFFICIENT` 覆盖结论；
+- 广义知识、行业通用知识、未知颗粒度和缺失 Slot 显式原因码；
+- 确定性 Evidence ID/Digest，SQLite schema version 3 持久化回放；
+- 不改写已验收的 K0-03 Resolution Result。
+
 ## 构建和验证
 
 要求 .NET SDK `10.0.301`：
@@ -52,6 +61,7 @@ dotnet run --project tests/FullSpectrum.Knowledge.Tests -c Release --no-build
 dotnet run --project src/FullSpectrum.Knowledge.TestHost -c Release --no-build -- verify
 dotnet run --project src/FullSpectrum.Knowledge.TestHost -c Release --no-build -- verify-k0-02
 dotnet run --project src/FullSpectrum.Knowledge.TestHost -c Release --no-build -- verify-k0-03
+dotnet run --project src/FullSpectrum.Knowledge.TestHost -c Release --no-build -- verify-k0-04
 ```
 
 TestHost 示例：
@@ -70,6 +80,8 @@ dotnet run --project src/FullSpectrum.Knowledge.TestHost -- validate examples/k0
 - [K0-02测试报告](docs/reports/K0-02_TEST_REPORT.md)
 - [K0-03实现报告](docs/reports/K0-03_IMPLEMENTATION_REPORT.md)
 - [K0-03测试报告](docs/reports/K0-03_TEST_REPORT.md)
+- [K0-04实现报告](docs/reports/K0-04_IMPLEMENTATION_REPORT.md)
+- [K0-04测试报告](docs/reports/K0-04_TEST_REPORT.md)
 - [项目边界ADR](docs/adr/ADR-001-project-boundary.md)
 
 ## 许可证
