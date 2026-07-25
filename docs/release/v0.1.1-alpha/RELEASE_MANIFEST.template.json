@@ -1,0 +1,15 @@
+{
+  "manifest_version": "1.0",
+  "version": "v0.1.1-alpha",
+  "release_commit": "GENERATED_AT_PACKAGING",
+  "tag": "NOT_CREATED",
+  "artifact": "full-spectrum-knowledge-governance-v0.1.1-alpha-win-x64.zip",
+  "sha256": "GENERATED_AT_PACKAGING",
+  "target": "win-x64",
+  "tests": { "passed": 74, "total": 74 },
+  "schemas": { "valid": 12, "total": 12 },
+  "golden": "PASS",
+  "production_ready": false,
+  "linux_test": "NOT_EXECUTED",
+  "macos_test": "NOT_EXECUTED"
+}

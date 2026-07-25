@@ -9,8 +9,11 @@
     "contract_version": { "const": "knowledge-contract/1.0.0" },
     "evidence_id": { "type": "string", "minLength": 1 },
     "resolution_id": { "type": "string", "minLength": 1 },
-    "traces": { "type": "array" },
-    "coverage": { "type": "object" },
+    "traces": {
+      "type": "array",
+      "items": { "$ref": "knowledge-match-trace.schema.json" }
+    },
+    "coverage": { "$ref": "coverage-assessment.schema.json" },
     "explain": { "type": "array", "items": { "type": "string", "minLength": 1 } },
     "evidence_digest": {
       "type": "object",

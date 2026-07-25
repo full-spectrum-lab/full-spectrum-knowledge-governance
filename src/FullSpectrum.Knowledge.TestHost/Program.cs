@@ -30,6 +30,7 @@ internal static class Program
         "verify-k0-03" when args.Length == 1 => VerifyK003(),
         "verify-k0-04" when args.Length == 1 => VerifyK004(),
         "verify-k0-05" when args.Length == 1 => VerifyK005(),
+        "version" when args.Length == 1 => PrintVersion(),
         "digest" when args.Length == 2 => PrintDigest(args[1]),
         "validate" when args.Length == 3 => Validate(args[1], args[2]),
         _ => Usage()
@@ -420,7 +421,26 @@ internal static class Program
 
     private static int Usage()
     {
-        Console.Error.WriteLine("Usage: verify | verify-k0-02 | verify-k0-03 | verify-k0-04 | digest <json> | validate <instance> <schema>");
+        Console.Error.WriteLine("Usage: version | verify | verify-k0-02 | verify-k0-03 | verify-k0-04 | verify-k0-05 | digest <json> | validate <instance> <schema>");
         return 2;
+    }
+
+    private static int PrintVersion()
+    {
+        var assembly = typeof(Program).Assembly;
+        var informational = assembly
+            .GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
+            .Cast<System.Reflection.AssemblyInformationalVersionAttribute>()
+            .Single().InformationalVersion;
+        var metadata = assembly
+            .GetCustomAttributes(typeof(System.Reflection.AssemblyMetadataAttribute), false)
+            .Cast<System.Reflection.AssemblyMetadataAttribute>()
+            .ToDictionary(item => item.Key, item => item.Value ?? string.Empty, StringComparer.Ordinal);
+        Console.WriteLine($"VERSION={informational}");
+        Console.WriteLine($"COMMIT={metadata["RepositoryCommit"]}");
+        Console.WriteLine($"TARGET={System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier}");
+        Console.WriteLine($"BUILD_CONFIGURATION={metadata["BuildConfiguration"]}");
+        Console.WriteLine("PRODUCTION_READY=NO");
+        return 0;
     }
 }

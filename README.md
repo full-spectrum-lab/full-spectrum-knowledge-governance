@@ -1,8 +1,10 @@
 # Full Spectrum Knowledge Governance
 
-当前研发状态：K0-05 候选实现中。K0-04 已通过第三方独立复测；K0-05 尚未通过第三方复测，因此没有 Tag、Release 或 v0.1.0-alpha 发布声明。
+当前正式版本：`v0.1.0-alpha`（Alpha Technical Preview / Gitee Prerelease）。KG0 Final Gate 已通过；生产可用状态为 `NO`。主分支正在准备 post-release 修复候选。
 
-K0-05 在既有知识注册、FIXED_ONLY 解析和证据 Sidecar 上增加版本化领域画像、五级分类体系、知识槽位、精确绑定及确定性规划。运行 `scripts/verify-k0-05.ps1` 可执行锁定还原、Release 构建、全量回归和 Golden 校验。
+已验证平台为 Windows x64；Linux/macOS 尚未执行。本版本包含本地固定知识注册、FIXED_ONLY 解析、Evidence Sidecar、版本化领域画像、五级分类体系、知识槽位、精确绑定及确定性规划；不包含动态知识、LLM、向量数据库、Skill 或 Observer/Engine Adapter。
+
+运行 `scripts/verify-k0-05.ps1` 可执行锁定还原、Release 构建、全量回归和 Golden 校验。
 
 独立、本地优先的知识供应与治理系统。项目将知识材料治理为具有身份、精确版本、生命周期、内容摘要、适用条件、审计记录和重放能力的不可变依据。
 

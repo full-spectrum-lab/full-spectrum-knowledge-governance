@@ -1,8 +1,10 @@
 # Full Spectrum Knowledge Governance
 
-Current status: K0-05 candidate implementation. K0-04 passed independent third-party retesting; K0-05 has not, so no Tag, Release, or v0.1.0-alpha release is declared.
+Current release: `v0.1.0-alpha` (Alpha Technical Preview / Gitee Prerelease). KG0 Final Gate passed; production ready is `NO`. The main branch is preparing a post-release correction candidate.
 
-K0-05 adds versioned domain profiles, five-level taxonomy, slots, exact bindings, fail-closed validation, and deterministic FIXED_ONLY planning. Run `scripts/verify-k0-05.ps1` for locked restore, Release build, full regression, and Golden verification.
+Windows x64 is verified; Linux and macOS are not executed. The release includes local fixed-knowledge registration, FIXED_ONLY resolution, evidence sidecars, versioned domain profiles, five-level taxonomy, slots, exact bindings, and deterministic planning. It excludes dynamic knowledge, LLMs, vector databases, Skills, and Observer/Engine adapters.
+
+Run `scripts/verify-k0-05.ps1` for locked restore, Release build, full regression, and Golden verification.
 
 An independent, local-first knowledge supply and governance system. It turns source material into immutable knowledge artifacts with identity, exact versions, lifecycle state, content digests, applicability, audit records, and replay semantics.
 

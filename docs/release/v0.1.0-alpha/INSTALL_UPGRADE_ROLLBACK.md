@@ -1,10 +1,23 @@
 # Install, upgrade and rollback
 
-Requirements: .NET SDK/runtime 10.0.301 and local SQLite support.
+Build requirement: .NET SDK 10.0.301. Runtime requirement: a compatible .NET 10 Runtime and local SQLite support.
 
 The package is framework-dependent. Set `DOTNET_ROOT` to the installed .NET 10 runtime location when it is not registered system-wide.
 
-Restore and verify:
+Verify the extracted binary package:
+
+```powershell
+.\bin\FullSpectrum.Knowledge.TestHost.exe version
+.\bin\FullSpectrum.Knowledge.TestHost.exe verify-k0-05
+```
+
+The equivalent framework-host command is:
+
+```powershell
+dotnet .\bin\FullSpectrum.Knowledge.TestHost.dll verify-k0-05
+```
+
+The following source verification commands apply only to a Git clone or source-code archive containing `src/` and `tests/`:
 
 ```powershell
 dotnet restore FullSpectrum.Knowledge.slnx --locked-mode

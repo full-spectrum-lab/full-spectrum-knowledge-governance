@@ -80,7 +80,11 @@ internal static class Program
         ("Domain planner maps selected granularity", DomainPlannerMapsGranularity),
         ("Domain profile conforms to its schema", DomainProfileSchema),
         ("Subject profile conforms to its schema", SubjectProfileSchema),
-        ("Domain resolution plan conforms to its schema", DomainPlanSchema)
+        ("Domain resolution plan conforms to its schema", DomainPlanSchema),
+        ("Audit schema accepts the C# KnowledgeId alphabet", AuditSchemaIdentifierParity),
+        ("Audit schema rejects build metadata like C#", AuditSchemaVersionParity),
+        ("Domain profile schema rejects an invalid binding version", DomainProfileRejectsBindingVersion),
+        ("Domain plan schema validates nested candidates", DomainPlanRejectsCandidateVersion)
     ];
 
     private static int Main()
@@ -803,6 +807,43 @@ internal static class Program
     private static void DomainPlanSchema() => Equal(0, ValidateSchema(
         JsonSerializer.Serialize(DomainResolutionPlanner.Plan(SyntheticDomainProfile(), SyntheticSubject()), KnowledgeJson.Options),
         "domain-resolution-plan.schema.json").Count);
+
+    private static void AuditSchemaIdentifierParity()
+    {
+        var audit = new KnowledgeAuditEvent(
+            1, new KnowledgeId("KG-DEMO.A_B"), new KnowledgeVersion("1.0.0"), "REGISTERED", null,
+            KnowledgeLifecycleState.Draft, "author", DateTimeOffset.Parse("2026-07-24T00:00:00Z"),
+            new Dictionary<string, string>());
+        Equal(0, ValidateSchema(
+            JsonSerializer.Serialize(audit, KnowledgeJson.Options), "knowledge-audit-event.schema.json").Count);
+    }
+
+    private static void AuditSchemaVersionParity()
+    {
+        var json = JsonSerializer.Serialize(new
+        {
+            sequence = 1, knowledge_id = "KG-DEMO-AUDIT", version = "1.0.0+build",
+            event_type = "REGISTERED", from_state = (string?)null, to_state = "DRAFT",
+            actor = "author", occurred_at_utc = "2026-07-24T00:00:00Z",
+            details = new Dictionary<string, string>()
+        }, KnowledgeJson.Options);
+        True(ValidateSchema(json, "knowledge-audit-event.schema.json").Count > 0);
+    }
+
+    private static void DomainProfileRejectsBindingVersion()
+    {
+        var json = JsonSerializer.Serialize(SyntheticDomainProfile(), KnowledgeJson.Options)
+            .Replace("\"version\": \"1.0.0\",", "\"version\": \"latest\",", StringComparison.Ordinal);
+        True(ValidateSchema(json, "domain-profile.schema.json").Count > 0);
+    }
+
+    private static void DomainPlanRejectsCandidateVersion()
+    {
+        var json = JsonSerializer.Serialize(
+            DomainResolutionPlanner.Plan(SyntheticDomainProfile(), SyntheticSubject()), KnowledgeJson.Options)
+            .Replace("\"version\": \"1.0.0\"", "\"version\": \"latest\"", StringComparison.Ordinal);
+        True(ValidateSchema(json, "domain-resolution-plan.schema.json").Count > 0);
+    }
 
     private static IReadOnlyList<string> ValidateFixture() => Validate(File.ReadAllText(FixturePath()));
 

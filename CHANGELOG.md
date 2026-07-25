@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased — K0-05 candidate
+## Unreleased — post-release corrections
+
+- Align public documentation with the published `v0.1.0-alpha`.
+- Prepare release identity, offline evidence, platform-locked packaging and stricter contracts.
+
+## v0.1.0-alpha — 2026-07-24
 
 - Added released domain profiles, taxonomy, slots and exact knowledge bindings.
 - Added fail-closed configuration validation and deterministic resolution planning.

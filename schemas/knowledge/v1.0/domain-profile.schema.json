@@ -44,7 +44,8 @@
       "properties": {
         "binding_code": { "$ref": "#/$defs/code" }, "slot_id": { "$ref": "#/$defs/code" },
         "knowledge_id": { "type": "string", "pattern": "^KG-[A-Z0-9][A-Z0-9._-]{2,63}$" },
-        "version": { "type": "string" }, "artifact_id": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?$" },
+        "artifact_id": { "type": "string", "minLength": 1 },
         "actual_granularity": { "$ref": "#/$defs/granularity" },
         "taxonomy_codes": { "type": "array", "items": { "$ref": "#/$defs/code" } },
         "feature_codes": { "type": "array", "items": { "$ref": "#/$defs/code" } }
