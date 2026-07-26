@@ -14,7 +14,7 @@
 
 All notable changes will be documented here.
 
-## Unreleased
+## Historical K0 development record
 
 ### Added
 

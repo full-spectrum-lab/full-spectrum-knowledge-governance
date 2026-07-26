@@ -8,7 +8,7 @@ Run `scripts/verify-k0-05.ps1` for locked restore, Release build, full regressio
 
 An independent, local-first knowledge supply and governance system. It turns source material into immutable knowledge artifacts with identity, exact versions, lifecycle state, content digests, applicability, audit records, and replay semantics.
 
-> Status: `K0-01..K0-03 INDEPENDENTLY VERIFIED / K0-04 IMPLEMENTED / AWAITING CLEAN-CLONE REPRODUCTION / NOT RELEASED`
+> Status: `v0.1.0-alpha RELEASED / v0.1.1-alpha CANDIDATE / PRODUCTION_READY=NO`
 
 K0-01 provides the standalone .NET 10 contract kernel, JSON Schema Draft 2020-12 documents, deterministic canonical JSON and SHA-256 digests, an offline TestHost, and dependency-free automated tests.
 

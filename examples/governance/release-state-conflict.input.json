@@ -1,0 +1,12 @@
+{
+  "case_id": "KG-GC-RELEASE-STATE-CONFLICT",
+  "subject": "v0.1.0-alpha",
+  "sources": [
+    { "name": "gitee_release", "status": "RELEASED", "authority": 100 },
+    { "name": "release_manifest", "status": "RELEASED", "authority": 95 },
+    { "name": "git_tag", "status": "RELEASED", "authority": 90 },
+    { "name": "wiki_final_gate", "status": "RELEASED", "authority": 70 },
+    { "name": "readme", "status": "NOT_RELEASED", "authority": 40 },
+    { "name": "changelog", "status": "UNRELEASED", "authority": 30 }
+  ]
+}

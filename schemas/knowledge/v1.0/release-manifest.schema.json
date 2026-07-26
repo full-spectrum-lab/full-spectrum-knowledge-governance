@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://full-spectrum-lab.example/schemas/knowledge/v1.0/release-manifest.schema.json",
+  "title": "Release Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "manifest_version", "project", "version", "release_commit", "tag",
+    "release_status", "prerelease", "release_url", "artifact", "sha256",
+    "target", "tests", "schemas", "golden", "kg0_final_gate",
+    "production_ready", "linux_test", "macos_test"
+  ],
+  "properties": {
+    "manifest_version": { "const": "1.0" },
+    "project": { "const": "full-spectrum-knowledge-governance" },
+    "version": { "type": "string", "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+-[0-9A-Za-z.-]+$" },
+    "release_commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "tag": { "type": "string", "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+-[0-9A-Za-z.-]+$" },
+    "release_status": { "enum": ["RELEASED"] },
+    "prerelease": { "type": "boolean" },
+    "release_url": { "type": "string", "minLength": 1 },
+    "artifact": { "type": "string", "minLength": 1 },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "target": { "type": "string", "minLength": 1 },
+    "tests": { "$ref": "#/$defs/counts" },
+    "schemas": { "$ref": "#/$defs/schema_counts" },
+    "golden": { "enum": ["PASS"] },
+    "kg0_final_gate": { "enum": ["PASS"] },
+    "production_ready": { "type": "boolean" },
+    "linux_test": { "enum": ["VERIFIED", "NOT_EXECUTED"] },
+    "macos_test": { "enum": ["VERIFIED", "NOT_EXECUTED"] }
+  },
+  "$defs": {
+    "counts": {
+      "type": "object", "additionalProperties": false,
+      "required": ["passed", "total"],
+      "properties": {
+        "passed": { "type": "integer", "minimum": 0 },
+        "total": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "schema_counts": {
+      "type": "object", "additionalProperties": false,
+      "required": ["valid", "total"],
+      "properties": {
+        "valid": { "type": "integer", "minimum": 0 },
+        "total": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}

@@ -84,7 +84,9 @@ internal static class Program
         ("Audit schema accepts the C# KnowledgeId alphabet", AuditSchemaIdentifierParity),
         ("Audit schema rejects build metadata like C#", AuditSchemaVersionParity),
         ("Domain profile schema rejects an invalid binding version", DomainProfileRejectsBindingVersion),
-        ("Domain plan schema validates nested candidates", DomainPlanRejectsCandidateVersion)
+        ("Domain plan schema validates nested candidates", DomainPlanRejectsCandidateVersion),
+        ("Release-state conflict resolves by authority", ReleaseStateConflictResolution),
+        ("Release manifest conforms to its schema", ReleaseManifestSchema)
     ];
 
     private static int Main()
@@ -844,6 +846,21 @@ internal static class Program
             .Replace("\"version\": \"1.0.0\"", "\"version\": \"latest\"", StringComparison.Ordinal);
         True(ValidateSchema(json, "domain-resolution-plan.schema.json").Count > 0);
     }
+
+    private static void ReleaseStateConflictResolution()
+    {
+        var input = JsonSerializer.Deserialize<FullSpectrum.Knowledge.TestHost.ReleaseFactCase>(
+            File.ReadAllText(Path.Combine(Root(), "examples", "governance", "release-state-conflict.input.json")),
+            KnowledgeJson.Options) ?? throw new InvalidDataException("Release conflict fixture is invalid.");
+        var actual = FullSpectrum.Knowledge.TestHost.ReleaseFactReconciler.Reconcile(input);
+        var expected = DeterministicJson.Canonicalize(File.ReadAllText(
+            Path.Combine(Root(), "examples", "governance", "release-state-conflict.expected.json")));
+        Equal(expected, DeterministicJson.Canonicalize(JsonSerializer.Serialize(actual, KnowledgeJson.Options)));
+    }
+
+    private static void ReleaseManifestSchema() => Equal(0, ValidateSchema(
+        File.ReadAllText(Path.Combine(Root(), "docs", "release", "v0.1.0-alpha", "RELEASE_MANIFEST.json")),
+        "release-manifest.schema.json").Count);
 
     private static IReadOnlyList<string> ValidateFixture() => Validate(File.ReadAllText(FixturePath()));
 

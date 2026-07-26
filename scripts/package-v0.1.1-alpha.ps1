@@ -98,8 +98,8 @@ try {
         artifact = (Split-Path -Leaf $archive)
         sha256 = $hash
         target = "win-x64"
-        tests = @{ passed = 74; total = 74 }
-        schemas = @{ valid = 12; total = 12 }
+        tests = @{ passed = 76; total = 76 }
+        schemas = @{ valid = 13; total = 13 }
         golden = "PASS"
         production_ready = $false
         linux_test = "NOT_EXECUTED"

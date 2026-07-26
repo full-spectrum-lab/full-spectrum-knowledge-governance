@@ -1,0 +1,8 @@
+{
+  "case_id": "KG-GC-RELEASE-STATE-CONFLICT",
+  "resolved_status": "RELEASED",
+  "authoritative_source": "gitee_release",
+  "conflicting_sources": ["changelog", "readme"],
+  "required_action": "CORRECT_STALE_DECLARATIONS_AND_RECORD_EVIDENCE",
+  "production_ready": false
+}

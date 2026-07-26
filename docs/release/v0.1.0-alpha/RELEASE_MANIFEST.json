@@ -1,8 +1,11 @@
 {
   "manifest_version": "1.0",
+  "project": "full-spectrum-knowledge-governance",
   "version": "v0.1.0-alpha",
   "release_commit": "afe0a6a672b2008a6ba3aa048e6099f84bf5199f",
   "tag": "v0.1.0-alpha",
+  "release_status": "RELEASED",
+  "prerelease": true,
   "release_url": "https://gitee.com/full-spectrum/full-spectrum-knowledge-governance/releases/tag/v0.1.0-alpha",
   "artifact": "full-spectrum-knowledge-governance-v0.1.0-alpha-win-x64.zip",
   "sha256": "cbeeacea841d3ea66140d3130fd5720c6b2b67c7e52aa4777b54b289879cdde8",

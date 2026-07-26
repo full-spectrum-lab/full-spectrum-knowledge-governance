@@ -30,6 +30,7 @@ internal static class Program
         "verify-k0-03" when args.Length == 1 => VerifyK003(),
         "verify-k0-04" when args.Length == 1 => VerifyK004(),
         "verify-k0-05" when args.Length == 1 => VerifyK005(),
+        "verify-release-facts" when args.Length == 1 => VerifyReleaseFacts(),
         "version" when args.Length == 1 => PrintVersion(),
         "digest" when args.Length == 2 => PrintDigest(args[1]),
         "validate" when args.Length == 3 => Validate(args[1], args[2]),
@@ -392,6 +393,82 @@ internal static class Program
         return errors.Count == 0 ? 0 : 1;
     }
 
+    private static int VerifyReleaseFacts()
+    {
+        var root = FindRepositoryRoot();
+        var input = JsonSerializer.Deserialize<ReleaseFactCase>(
+            File.ReadAllText(Path.Combine(root, "examples", "governance", "release-state-conflict.input.json")),
+            KnowledgeJson.Options) ?? throw new InvalidDataException("Release conflict case is invalid.");
+        var actual = ReleaseFactReconciler.Reconcile(input);
+        var actualJson = DeterministicJson.Canonicalize(JsonSerializer.Serialize(actual, KnowledgeJson.Options));
+        var expectedJson = DeterministicJson.Canonicalize(File.ReadAllText(
+            Path.Combine(root, "examples", "governance", "release-state-conflict.expected.json")));
+        var manifestPath = Path.Combine(root, "docs", "release", "v0.1.0-alpha", "RELEASE_MANIFEST.json");
+        using var manifest = JsonDocument.Parse(File.ReadAllText(manifestPath));
+        var version = manifest.RootElement.GetProperty("version").GetString()!;
+        var commit = manifest.RootElement.GetProperty("release_commit").GetString()!;
+        var tag = manifest.RootElement.GetProperty("tag").GetString()!;
+        var readme = File.ReadAllText(Path.Combine(root, "README.md"));
+        var changelog = File.ReadAllText(Path.Combine(root, "CHANGELOG.md"));
+        var errors = new List<string>();
+        if (!string.Equals(actualJson, expectedJson, StringComparison.Ordinal))
+            errors.Add("Release conflict Golden mismatch.");
+        if (!readme.Contains($"当前正式版本：`{version}`", StringComparison.Ordinal))
+            errors.Add("README does not reference the manifest release version.");
+        if (readme.Contains("NOT RELEASED", StringComparison.Ordinal) ||
+            readme.Contains("AWAITING CLEAN-CLONE", StringComparison.Ordinal))
+            errors.Add("README contains a stale release declaration.");
+        if (!changelog.Contains($"## {version}", StringComparison.Ordinal))
+            errors.Add("CHANGELOG does not contain the manifest release version.");
+        var tagCommit = RunGit(root, "rev-list", "-n", "1", tag);
+        if (!string.Equals(tagCommit, commit, StringComparison.Ordinal))
+            errors.Add("Tag target does not match release manifest commit.");
+        var evidenceInput = JsonSerializer.Serialize(new
+        {
+            manifest_version = version,
+            manifest_commit = commit,
+            tag,
+            tag_commit = tagCommit,
+            conflict_case = actual
+        }, KnowledgeJson.Options);
+        Console.WriteLine(JsonSerializer.Serialize(new
+        {
+            status = errors.Count == 0 ? "PASS" : "FAIL",
+            single_source_of_truth = "docs/release/v0.1.0-alpha/RELEASE_MANIFEST.json",
+            version,
+            release_commit = commit,
+            tag,
+            tag_commit = tagCommit,
+            conflict_case = actual,
+            evidence_sha256 = DeterministicJson.ComputeSha256(evidenceInput).Value,
+            errors
+        }, KnowledgeJson.Options));
+        return errors.Count == 0 ? 0 : 1;
+    }
+
+    private static string RunGit(string root, params string[] arguments)
+    {
+        using var process = new System.Diagnostics.Process
+        {
+            StartInfo = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "git",
+                WorkingDirectory = root,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            }
+        };
+        foreach (var argument in arguments) process.StartInfo.ArgumentList.Add(argument);
+        process.Start();
+        var output = process.StandardOutput.ReadToEnd();
+        var error = process.StandardError.ReadToEnd();
+        process.WaitForExit();
+        if (process.ExitCode != 0) throw new InvalidOperationException($"git failed: {error.Trim()}");
+        return output.Trim();
+    }
+
     private static int Validate(string instancePath, string schemaPath)
     {
         var errors = SchemaSubsetValidator.Validate(
@@ -421,7 +498,7 @@ internal static class Program
 
     private static int Usage()
     {
-        Console.Error.WriteLine("Usage: version | verify | verify-k0-02 | verify-k0-03 | verify-k0-04 | verify-k0-05 | digest <json> | validate <instance> <schema>");
+        Console.Error.WriteLine("Usage: version | verify | verify-k0-02 | verify-k0-03 | verify-k0-04 | verify-k0-05 | verify-release-facts | digest <json> | validate <instance> <schema>");
         return 2;
     }
 
