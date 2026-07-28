@@ -4,6 +4,7 @@
 
 - Align public documentation with the published `v0.1.0-alpha`.
 - Prepare release identity, offline evidence, platform-locked packaging and stricter contracts.
+- Mirror the original `v0.1.0-alpha` tag, release commit and Windows x64 artifact to GitHub without rebuilding or retagging.
 
 ## v0.1.0-alpha — 2026-07-24
 

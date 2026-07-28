@@ -1,6 +1,6 @@
 # Full Spectrum Knowledge Governance
 
-当前正式版本：`v0.1.0-alpha`（Alpha Technical Preview / Gitee Prerelease）。KG0 Final Gate 已通过；生产可用状态为 `NO`。主分支正在准备 post-release 修复候选。
+当前正式版本：`v0.1.0-alpha`（Alpha Technical Preview / Gitee 与 GitHub Prerelease）。KG0 Final Gate 已通过；生产可用状态为 `NO`。主分支正在准备 post-release 修复候选。
 
 已验证平台为 Windows x64；Linux/macOS 尚未执行。本版本包含本地固定知识注册、FIXED_ONLY 解析、Evidence Sidecar、版本化领域画像、五级分类体系、知识槽位、精确绑定及确定性规划；不包含动态知识、LLM、向量数据库、Skill 或 Observer/Engine Adapter。
 
@@ -9,6 +9,15 @@
 独立、本地优先的知识供应与治理系统。项目将知识材料治理为具有身份、精确版本、生命周期、内容摘要、适用条件、审计记录和重放能力的不可变依据。
 
 > 当前状态：`v0.1.0-alpha RELEASED / v0.1.1-alpha CANDIDATE / PRODUCTION_READY=NO`
+
+## 发布入口
+
+- [Gitee v0.1.0-alpha Release（正式事实源）](https://gitee.com/full-spectrum/full-spectrum-knowledge-governance/releases/tag/v0.1.0-alpha)
+- [GitHub v0.1.0-alpha Prerelease（同一 Tag、Commit 与二进制制品）](https://github.com/full-spectrum-lab/full-spectrum-knowledge-governance/releases/tag/v0.1.0-alpha)
+- Release Commit：`afe0a6a672b2008a6ba3aa048e6099f84bf5199f`
+- Windows x64 ZIP SHA-256：`cbeeacea841d3ea66140d3130fd5720c6b2b67c7e52aa4777b54b289879cdde8`
+
+Gitee 与 GitHub 人工上传的 Windows x64 ZIP 字节一致。两个平台自动生成的源码 ZIP/TAR 不属于跨平台摘要一致性范围。
 
 ## 边界
 
