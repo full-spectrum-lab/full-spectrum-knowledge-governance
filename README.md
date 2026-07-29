@@ -1,32 +1,54 @@
-# Full Spectrum Knowledge Governance — Wiki Mirror
+# Full Spectrum Knowledge Governance
 
 [![Knowledge governance lifecycle](https://github.com/full-spectrum-lab/full-spectrum-commons/blob/main/diagrams/product-views/knowledge-governance-lifecycle-en-v01.png?raw=1)](https://github.com/full-spectrum-lab/full-spectrum-commons/blob/main/docs/visual-index.md)
 
-This repository is a **GitHub documentation entry and Wiki mirror**. It is not the primary code repository and must not be used as an independent release fact source.
+独立、本地优先的固定知识治理内核。它将知识材料治理为具有身份、精确版本、内容摘要、生命周期、适用条件、审计记录和回放能力的不可变依据。
 
-## Start here
+> `v0.1.0-alpha RELEASED / PRE-RELEASE` · `PRODUCTION_READY=NO`
 
-- [Primary code repository](https://github.com/full-spectrum-lab/full-spectrum-knowledge-governance)
+## Release truth
+
 - [GitHub v0.1.0-alpha Pre-release](https://github.com/full-spectrum-lab/full-spectrum-knowledge-governance/releases/tag/v0.1.0-alpha)
-- [Canonical Gitee Wiki](https://gitee.com/full-spectrum/full-spectrum-knowledge-governance/wikis/Home)
-- [Shared visual index](https://github.com/full-spectrum-lab/full-spectrum-commons/blob/main/docs/visual-index.md)
+- [Gitee v0.1.0-alpha Release](https://gitee.com/full-spectrum/full-spectrum-knowledge-governance/releases/tag/v0.1.0-alpha)
+- Release commit: `afe0a6a672b2008a6ba3aa048e6099f84bf5199f`
+- Verified platform: Windows x64
+- Linux/macOS: not executed
 
-## Current public status
+The diagram above describes the lifecycle direction. It is not evidence that every depicted future capability has shipped; the code, tests and release record are authoritative.
 
-```text
-VERSION = v0.1.0-alpha
-RELEASE_STATUS = PRE-RELEASE
-PRODUCTION_READY = NO
-VERIFIED_PLATFORM = Windows x64
-LINUX_MACOS = NOT_EXECUTED
+## Implemented scope
+
+- K0-01: contracts, identifiers, JSON Schema Draft 2020-12 and deterministic digest
+- K0-02: SQLite registry, immutable artifact store, lifecycle gate, audit and replay
+- K0-03: `FIXED_ONLY` fail-closed resolution and explicit `UNKNOWN`
+- K0-04: match trace, coverage, missing slots and explain-evidence sidecar
+- K0-05: domain profile, taxonomy and exact slot mapping
+
+## Boundary
+
+- Independent from Full Spectrum Observer and Full Spectrum Engine.
+- Future integration must use an external Adapter and must not change Observer's frozen requirements.
+- No dynamic knowledge acquisition, LLM, vector database, Skill runtime or production authorization is included.
+- All examples are synthetic test data and are not professional or regulatory conclusions.
+
+## Build and verify
+
+Requires .NET SDK `10.0.301`.
+
+```powershell
+dotnet restore FullSpectrum.Knowledge.slnx --locked-mode
+dotnet build FullSpectrum.Knowledge.slnx -c Release --no-restore
+dotnet run --project tests/FullSpectrum.Knowledge.Tests -c Release --no-build
+powershell -ExecutionPolicy Bypass -File scripts/verify-k0-05.ps1
 ```
 
-The diagram is an orientation aid. The primary code repository, release manifest, test evidence and canonical Gitee Wiki determine engineering truth.
+## Documentation
 
-## Project boundary
-
-Knowledge Governance is an independent local-first knowledge identity, version, lifecycle, resolution and evidence core. It does not depend on Observer or Engine. Future integration must occur through an external Adapter and must not alter Observer's frozen product baseline.
+- [Gitee Wiki](https://gitee.com/full-spectrum/full-spectrum-knowledge-governance/wikis/Home)
+- [Project boundary ADR](docs/adr/ADR-001-project-boundary.md)
+- [Implementation and test reports](docs/reports/)
+- [Shared visual index](https://github.com/full-spectrum-lab/full-spectrum-commons/blob/main/docs/visual-index.md)
 
 ## License
 
-Documentation and mirrored project materials retain their original repository license notices. The code project uses `MulanPSL-2.0 OR Apache-2.0`.
+`MulanPSL-2.0 OR Apache-2.0`. Recipients may choose either license.
