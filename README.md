@@ -2,6 +2,8 @@
 
 [![Knowledge governance lifecycle](https://github.com/full-spectrum-lab/full-spectrum-commons/blob/main/diagrams/product-views/knowledge-governance-lifecycle-en-v01.png?raw=1)](https://github.com/full-spectrum-lab/full-spectrum-commons/blob/main/docs/visual-index.md)
 
+[Start from Your Question](https://github.com/full-spectrum-lab/full-spectrum-commons/blob/main/docs/start-from-your-question.md) · [从你的问题开始](https://github.com/full-spectrum-lab/full-spectrum-commons/blob/main/docs/start-from-your-question.zh-CN.md) · [Four Independent Engineering Tracks](https://github.com/full-spectrum-lab/full-spectrum-commons/blob/main/docs/four-independent-engineering-tracks.md)
+
 独立、本地优先的固定知识治理内核。它将知识材料治理为具有身份、精确版本、内容摘要、生命周期、适用条件、审计记录和回放能力的不可变依据。
 
 **产品边界：**它可独立使用，负责精确知识身份、版本、来源、生命周期、冲突与回放；它不是 RAG、向量数据库、CMS、LLM Runtime 或自动真理裁决器。
