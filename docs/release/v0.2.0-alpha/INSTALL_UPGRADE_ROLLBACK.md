@@ -4,6 +4,7 @@
 
 - Windows x64.
 - .NET SDK `10.0.301` to rebuild from source, or a compatible .NET 10 runtime to run the framework-dependent package.
+- If the compatible runtime is installed in a private directory, set `DOTNET_ROOT` to that directory before running the AppHost executable.
 - Local SQLite support is included by the published application dependencies.
 
 ## Install

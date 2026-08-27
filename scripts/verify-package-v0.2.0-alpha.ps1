@@ -7,6 +7,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 $dotnet = if ($env:DOTNET_EXE) { $env:DOTNET_EXE } else { "dotnet" }
+$dotnetCommand = Get-Command $dotnet -ErrorAction Stop
+if (-not $env:DOTNET_ROOT) { $env:DOTNET_ROOT = Split-Path -Parent $dotnetCommand.Source }
 $packagePath = (Resolve-Path -LiteralPath $Package).Path
 $releaseManifestPath = (Resolve-Path -LiteralPath $ReleaseManifest).Path
 $auditPath = [IO.Path]::GetFullPath($AuditRoot)
