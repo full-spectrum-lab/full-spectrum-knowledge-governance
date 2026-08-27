@@ -35,6 +35,21 @@ The diagram above describes the lifecycle direction. It is not evidence that eve
 - No dynamic knowledge acquisition, LLM, vector database, Skill runtime or production authorization is included.
 - All examples are synthetic test data and are not professional or regulatory conclusions.
 
+Approved future direction, not current capability: controlled knowledge-source
+snapshots; separate fixed, dynamic and hybrid knowledge-resolution tracks; and
+independent release and deployment-profile production-readiness gates. See
+[ADR-010](docs/adr/ADR-010-controlled-knowledge-sources-and-snapshots.md),
+[ADR-011](docs/adr/ADR-011-knowledge-resolution-and-hybrid-comparison-boundary.md),
+[ADR-012](docs/adr/ADR-012-release-and-production-readiness-gates.md), and the
+[approved boundary record](docs/planning/approved-capability-boundaries-2026-08-27.md).
+
+The Owner-approved `v0.2.0-alpha` implementation is currently an unreleased
+working-tree candidate. Its bounded scope is fixed-lifecycle completion,
+an in-process `FIXED_ONLY` Library API and Adapter SPI, and v0.1.x compatibility
+gates. This status does not change the current release identity above. See
+[ADR-013](docs/adr/ADR-013-v02-fixed-lifecycle-and-library-boundary.md) and the
+[API/SPI design](docs/design/v0.2.0-alpha-library-api-and-adapter-spi.md).
+
 ## Build and verify
 
 Requires .NET SDK `10.0.301`.
@@ -46,10 +61,18 @@ dotnet run --project tests/FullSpectrum.Knowledge.Tests -c Release --no-build
 powershell -ExecutionPolicy Bypass -File scripts/verify-k0-05.ps1
 ```
 
+For the unreleased v0.2 engineering candidate:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/verify-v0.2.0-alpha.ps1
+```
+
 ## Documentation
 
 - [Gitee Wiki](https://gitee.com/full-spectrum/full-spectrum-knowledge-governance/wikis/Home)
 - [Project boundary ADR](docs/adr/ADR-001-project-boundary.md)
+- [Approved future capability boundaries](docs/planning/approved-capability-boundaries-2026-08-27.md)
+- [Approved v0.2.0-alpha scope](docs/planning/v0.2.0-alpha-scope-decision.md)
 - [Implementation and test reports](docs/reports/)
 - [Shared visual index](https://github.com/full-spectrum-lab/full-spectrum-commons/blob/main/docs/visual-index.md)
 

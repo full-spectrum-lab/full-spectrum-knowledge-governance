@@ -89,7 +89,7 @@ public sealed class ResolutionEvidenceBuilder(KnowledgeRegistry registry)
         }, KnowledgeJson.Options);
         var evidenceId = $"KRE-{DeterministicJson.ComputeSha256(identityInput).Value[..20].ToUpperInvariant()}";
         var provisional = new KnowledgeResolutionEvidence(
-            "knowledge-contract/1.0.0",
+            result.ContractVersion,
             evidenceId,
             result.ResolutionId,
             traces,

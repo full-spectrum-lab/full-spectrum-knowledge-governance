@@ -21,7 +21,7 @@ internal sealed class SqliteDatabase : IDisposable
             Dispose();
             throw new InvalidOperationException(message);
         }
-        ExecuteScript("PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;");
+        ExecuteScript("PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000;");
     }
 
     internal void ExecuteScript(string sql)

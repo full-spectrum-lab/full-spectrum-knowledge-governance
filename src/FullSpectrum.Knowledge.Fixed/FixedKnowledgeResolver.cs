@@ -105,7 +105,7 @@ public sealed class FixedKnowledgeResolver(KnowledgeRegistry registry)
         KnowledgeResolutionRequest request,
         IReadOnlyList<FixedKnowledgeCandidate> candidates)
     {
-        if (!string.Equals(request.ContractVersion, "knowledge-contract/1.0.0", StringComparison.Ordinal))
+        if (!KnowledgeContractVersions.IsSupported(request.ContractVersion))
         {
             throw new ArgumentException("Unsupported contract version.", nameof(request));
         }

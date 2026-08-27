@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://full-spectrum-lab.example/schemas/knowledge/v1.1/knowledge-resolution-result.schema.json",
+  "title": "Knowledge Resolution Result v1.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "resolution_id",
+    "request_id",
+    "mode",
+    "status",
+    "selected",
+    "excluded",
+    "unresolved",
+    "unknowns",
+    "result_digest"
+  ],
+  "properties": {
+    "contract_version": { "const": "knowledge-contract/1.1.0" },
+    "resolution_id": { "type": "string", "minLength": 1 },
+    "request_id": { "type": "string", "minLength": 1 },
+    "mode": { "const": "FIXED_ONLY" },
+    "status": { "enum": ["SUCCEEDED", "PARTIAL", "FAILED"] },
+    "selected": { "type": "array", "items": { "$ref": "#/$defs/binding" } },
+    "excluded": { "type": "array", "items": { "$ref": "#/$defs/binding" } },
+    "unresolved": { "type": "array", "items": { "$ref": "#/$defs/binding" } },
+    "unknowns": { "type": "array", "items": { "type": "string" } },
+    "result_digest": { "$ref": "#/$defs/digest" }
+  },
+  "$defs": {
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["binding_id", "slot_id", "status", "knowledge_id", "version", "artifact_digest", "reason_codes"],
+      "properties": {
+        "binding_id": { "type": "string", "minLength": 1 },
+        "slot_id": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["BOUND", "UNBOUND", "UNRESOLVED", "EXCLUDED"] },
+        "knowledge_id": { "type": ["string", "null"] },
+        "version": { "type": ["string", "null"] },
+        "artifact_digest": {
+          "oneOf": [
+            { "$ref": "#/$defs/digest" },
+            { "type": "null" }
+          ]
+        },
+        "reason_codes": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "digest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "value"],
+      "properties": {
+        "algorithm": { "const": "SHA-256" },
+        "value": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    }
+  }
+}

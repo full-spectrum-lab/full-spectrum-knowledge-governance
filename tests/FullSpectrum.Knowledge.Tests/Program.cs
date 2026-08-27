@@ -2,6 +2,7 @@ using System.Text.Json;
 using FullSpectrum.Knowledge.Contracts;
 using FullSpectrum.Knowledge.Domain;
 using FullSpectrum.Knowledge.Fixed;
+using FullSpectrum.Knowledge.Library;
 using FullSpectrum.Knowledge.Storage;
 using FullSpectrum.Knowledge.Trace;
 
@@ -15,7 +16,7 @@ internal static class Program
         ("KnowledgeId rejects lowercase identifiers", InvalidKnowledgeId),
         ("KnowledgeVersion accepts SemVer", ValidVersion),
         ("KnowledgeVersion rejects latest", LatestForbidden),
-        ("Lifecycle defines five frozen states", LifecycleStates),
+        ("Lifecycle v1.1 adds tombstone without changing v1.0 schema", LifecycleStates),
         ("Pack serialization round-trip preserves identity", PackRoundTrip),
         ("Canonical JSON ignores object property order", CanonicalPropertyOrder),
         ("Digest is stable across property order", DigestPropertyOrder),
@@ -38,6 +39,18 @@ internal static class Program
         ("Registry keeps exact versions independent", ExactVersionsIndependent),
         ("Registry reports missing identity", MissingIdentity),
         ("Audit event conforms to its schema", AuditEventSchema),
+        ("v0.1 schema and Golden baseline hashes are unchanged", V01BaselineHashes),
+        ("Contract upgrade preserves exact identity and artifact", ContractUpgradePreservesIdentity),
+        ("Contract upgrade is idempotent only for the same target", ContractUpgradeIdempotency),
+        ("Complete supersede records an exact released replacement", CompleteSupersede),
+        ("Complete supersede rejects invalid replacement references", SupersedeRejectsInvalidReplacement),
+        ("Complete supersede retry rejects different replacement", SupersedeRetryConflict),
+        ("Tombstone requires an explicit v1.1 upgrade", TombstoneRequiresUpgrade),
+        ("Tombstone is idempotent and preserves immutable content", TombstonePreservesHistory),
+        ("Tombstone rejects a conflicting retry", TombstoneRetryConflict),
+        ("Exact replay rejects a foreign audit sequence", ReplayExactRejectsForeignSequence),
+        ("Concurrent terminal transitions preserve one fact", ConcurrentTerminalTransition),
+        ("v1.1 pack and audit conform to additive schemas", V11LifecycleSchemas),
         ("Fixed resolution selects one exact released candidate", FixedSelectsReleased),
         ("Fixed resolution excludes a draft candidate", FixedRejectsDraft),
         ("Fixed resolution excludes a revoked candidate", FixedRejectsRevoked),
@@ -52,6 +65,8 @@ internal static class Program
         ("Fixed candidate conforms to its schema", FixedCandidateSchema),
         ("Fixed result conforms to its schema", FixedResultSchema),
         ("Fixed resolution rejects an invalid subject digest", FixedRejectsSubjectDigest),
+        ("Fixed resolution accepts the known v1.1 contract", FixedAcceptsV11),
+        ("Fixed resolution rejects an unknown contract", FixedRejectsUnknownContract),
         ("Trace records selected and unresolved bindings", TraceRecordsBindings),
         ("Coverage is complete at required granularity", CoverageComplete),
         ("Coverage reports generalized industry knowledge", CoverageGeneralized),
@@ -86,7 +101,9 @@ internal static class Program
         ("Domain profile schema rejects an invalid binding version", DomainProfileRejectsBindingVersion),
         ("Domain plan schema validates nested candidates", DomainPlanRejectsCandidateVersion),
         ("Release-state conflict resolves by authority", ReleaseStateConflictResolution),
-        ("Release manifest conforms to its schema", ReleaseManifestSchema)
+        ("Release manifest conforms to its schema", ReleaseManifestSchema),
+        ("Library API reopens v0.1 storage and resolves fixed knowledge", LibraryApiCompatibility),
+        ("Reference Adapter SPI round-trips public contracts", ReferenceAdapterRoundTrip)
     ];
 
     private static int Main()
@@ -114,7 +131,13 @@ internal static class Program
     private static void InvalidKnowledgeId() => Throws<ArgumentException>(() => _ = new KnowledgeId("kg-demo"));
     private static void ValidVersion() => Equal("1.2.3-alpha.1", new KnowledgeVersion("1.2.3-alpha.1").Value);
     private static void LatestForbidden() => Throws<ArgumentException>(() => _ = new KnowledgeVersion("latest"));
-    private static void LifecycleStates() => Equal(5, Enum.GetValues<KnowledgeLifecycleState>().Length);
+    private static void LifecycleStates()
+    {
+        Equal(6, Enum.GetValues<KnowledgeLifecycleState>().Length);
+        False(File.ReadAllText(Path.Combine(
+            Root(), "schemas", "knowledge", "v1.0", "knowledge-pack.schema.json"))
+            .Contains("TOMBSTONED", StringComparison.Ordinal));
+    }
 
     private static void PackRoundTrip()
     {
@@ -163,7 +186,8 @@ internal static class Program
 
     private static void SchemaDialect()
     {
-        foreach (var path in Directory.GetFiles(Path.Combine(Root(), "schemas", "knowledge", "v1.0"), "*.schema.json"))
+        foreach (var path in Directory.GetFiles(
+            Path.Combine(Root(), "schemas", "knowledge"), "*.schema.json", SearchOption.AllDirectories))
         {
             using var document = JsonDocument.Parse(File.ReadAllText(path));
             Equal("https://json-schema.org/draft/2020-12/schema", document.RootElement.GetProperty("$schema").GetString());
@@ -355,6 +379,258 @@ internal static class Program
         Equal(0, errors.Count);
     }
 
+    private static void V01BaselineHashes()
+    {
+        using var document = JsonDocument.Parse(File.ReadAllText(Path.Combine(
+            Root(), "docs", "compatibility", "v0.1.x-baseline-sha256.json")));
+        foreach (var entry in document.RootElement.GetProperty("entries").EnumerateObject())
+        {
+            var path = Path.Combine(Root(), entry.Name.Replace('/', Path.DirectorySeparatorChar));
+            True(File.Exists(path));
+            var actual = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(
+                File.ReadAllBytes(path)));
+            Equal(entry.Value.GetString(), actual);
+        }
+    }
+
+    private static void ContractUpgradePreservesIdentity()
+    {
+        using var fixture = new RegistryFixture();
+        fixture.Register();
+        var before = fixture.Registry.ReadArtifact(fixture.Id, fixture.Version, "ART-001");
+        var upgraded = fixture.Registry.UpgradeContract(
+            fixture.Id,
+            fixture.Version,
+            KnowledgeContractVersions.V1_1,
+            "maintainer",
+            fixture.At.AddMinutes(1));
+        Equal(KnowledgeContractVersions.V1_1, upgraded.ContractVersion);
+        Equal(fixture.Id, upgraded.KnowledgeId);
+        Equal(fixture.Version, upgraded.Version);
+        True(before.AsSpan().SequenceEqual(
+            fixture.Registry.ReadArtifact(fixture.Id, fixture.Version, "ART-001")));
+        var audit = fixture.Registry.Audit(fixture.Id, fixture.Version);
+        Equal("CONTRACT_UPGRADED", audit[^1].EventType);
+        Equal(KnowledgeContractVersions.V1_0, audit[^1].Details["from_contract_version"]);
+        Equal(KnowledgeContractVersions.V1_1, audit[^1].Details["to_contract_version"]);
+    }
+
+    private static void ContractUpgradeIdempotency()
+    {
+        using var fixture = new RegistryFixture();
+        fixture.Register();
+        var first = fixture.Registry.UpgradeContract(
+            fixture.Id, fixture.Version, KnowledgeContractVersions.V1_1, "maintainer", fixture.At.AddMinutes(1));
+        var retry = fixture.Registry.UpgradeContract(
+            fixture.Id, fixture.Version, KnowledgeContractVersions.V1_1, "maintainer", fixture.At.AddMinutes(2));
+        Equal(first.ContractVersion, retry.ContractVersion);
+        Equal(first.State, retry.State);
+        Equal(2, fixture.Registry.Audit(fixture.Id, fixture.Version).Count);
+        Throws<ArgumentException>(() => fixture.Registry.UpgradeContract(
+            fixture.Id, fixture.Version, "knowledge-contract/2.0.0", "maintainer", fixture.At.AddMinutes(3)));
+    }
+
+    private static void CompleteSupersede()
+    {
+        using var fixture = new RegistryFixture();
+        var source = fixture.Pack();
+        var replacement = source with { Version = new KnowledgeVersion("0.2.0") };
+        fixture.RegisterAndRelease(source);
+        fixture.RegisterAndRelease(replacement, minuteOffset: 4);
+        var reference = new KnowledgeReference(replacement.KnowledgeId, replacement.Version);
+        var result = fixture.Registry.Supersede(
+            source.KnowledgeId, source.Version, reference, "publisher", fixture.At.AddMinutes(8));
+        Equal(KnowledgeLifecycleState.Superseded, result.State);
+        var audit = fixture.Registry.Audit(source.KnowledgeId, source.Version)[^1];
+        Equal(replacement.KnowledgeId.Value, audit.Details["replacement_knowledge_id"]);
+        Equal(replacement.Version.Value, audit.Details["replacement_version"]);
+
+        var retry = fixture.Registry.Supersede(
+            source.KnowledgeId, source.Version, reference, "publisher", fixture.At.AddMinutes(9));
+        Equal(result.State, retry.State);
+        Equal(4, fixture.Registry.Audit(source.KnowledgeId, source.Version).Count);
+    }
+
+    private static void SupersedeRejectsInvalidReplacement()
+    {
+        using var fixture = new RegistryFixture();
+        fixture.RegisterAndRelease(fixture.Pack());
+        Throws<ArgumentException>(() => fixture.Registry.Supersede(
+            fixture.Id,
+            fixture.Version,
+            new KnowledgeReference(fixture.Id, fixture.Version),
+            "publisher",
+            fixture.At.AddMinutes(3)));
+        Throws<ArgumentException>(() => fixture.Registry.Supersede(
+            fixture.Id,
+            fixture.Version,
+            new KnowledgeReference(new KnowledgeId("KG-DEMO-OTHER"), new KnowledgeVersion("0.2.0")),
+            "publisher",
+            fixture.At.AddMinutes(3)));
+
+        var draft = fixture.Pack() with { Version = new KnowledgeVersion("0.2.0") };
+        fixture.Registry.Register(
+            draft,
+            [new ArtifactRegistration("ART-001", "{}"u8.ToArray())],
+            "author",
+            fixture.At.AddMinutes(4));
+        Throws<KnowledgeConflictException>(() => fixture.Registry.Supersede(
+            fixture.Id,
+            fixture.Version,
+            new KnowledgeReference(draft.KnowledgeId, draft.Version),
+            "publisher",
+            fixture.At.AddMinutes(5)));
+    }
+
+    private static void SupersedeRetryConflict()
+    {
+        using var fixture = new RegistryFixture();
+        var source = fixture.Pack();
+        var second = source with { Version = new KnowledgeVersion("0.2.0") };
+        var third = source with { Version = new KnowledgeVersion("0.3.0") };
+        fixture.RegisterAndRelease(source);
+        fixture.RegisterAndRelease(second, minuteOffset: 4);
+        fixture.RegisterAndRelease(third, minuteOffset: 8);
+        fixture.Registry.Supersede(
+            source.KnowledgeId,
+            source.Version,
+            new KnowledgeReference(second.KnowledgeId, second.Version),
+            "publisher",
+            fixture.At.AddMinutes(12));
+        Throws<KnowledgeConflictException>(() => fixture.Registry.Supersede(
+            source.KnowledgeId,
+            source.Version,
+            new KnowledgeReference(third.KnowledgeId, third.Version),
+            "publisher",
+            fixture.At.AddMinutes(13)));
+    }
+
+    private static void TombstoneRequiresUpgrade()
+    {
+        using var fixture = new RegistryFixture();
+        fixture.Register();
+        Throws<KnowledgeConflictException>(() => fixture.Registry.Tombstone(
+            fixture.Id, fixture.Version, "synthetic retirement", "maintainer", fixture.At.AddMinutes(1)));
+        Equal(KnowledgeLifecycleState.Draft, fixture.Registry.Get(fixture.Id, fixture.Version).State);
+    }
+
+    private static void TombstonePreservesHistory()
+    {
+        using var fixture = new RegistryFixture();
+        fixture.RegisterAndRelease(fixture.Pack());
+        fixture.Registry.UpgradeContract(
+            fixture.Id, fixture.Version, KnowledgeContractVersions.V1_1, "maintainer", fixture.At.AddMinutes(3));
+        var before = fixture.Registry.ReadArtifact(fixture.Id, fixture.Version, "ART-001");
+        var tombstoned = fixture.Registry.Tombstone(
+            fixture.Id, fixture.Version, "synthetic retirement", "maintainer", fixture.At.AddMinutes(4));
+        var retry = fixture.Registry.Tombstone(
+            fixture.Id, fixture.Version, "synthetic retirement", "maintainer", fixture.At.AddMinutes(5));
+        Equal(tombstoned.State, retry.State);
+        Equal(KnowledgeLifecycleState.Tombstoned, tombstoned.State);
+        True(before.AsSpan().SequenceEqual(
+            fixture.Registry.ReadArtifact(fixture.Id, fixture.Version, "ART-001")));
+        var count = fixture.Registry.Audit(fixture.Id, fixture.Version).Count;
+        var upgradeRetry = fixture.Registry.UpgradeContract(
+            fixture.Id, fixture.Version, KnowledgeContractVersions.V1_1, "maintainer", fixture.At.AddMinutes(6));
+        Equal(KnowledgeContractVersions.V1_1, upgradeRetry.ContractVersion);
+        fixture.Restart();
+        Equal(KnowledgeLifecycleState.Tombstoned, fixture.Registry.Get(fixture.Id, fixture.Version).State);
+        Equal(count, fixture.Registry.Audit(fixture.Id, fixture.Version).Count);
+
+        var result = fixture.Resolver.Resolve(
+            fixture.Request() with { RequestId = "REQ-TOMBSTONE" },
+            [fixture.Candidate()]);
+        Equal(KnowledgeResolutionStatus.Failed, result.Status);
+        True(result.Excluded.Single().ReasonCodes.Contains("STATE_NOT_RELEASED"));
+    }
+
+    private static void TombstoneRetryConflict()
+    {
+        using var fixture = new RegistryFixture();
+        fixture.Register();
+        fixture.Registry.UpgradeContract(
+            fixture.Id, fixture.Version, KnowledgeContractVersions.V1_1, "maintainer", fixture.At.AddMinutes(1));
+        fixture.Registry.Tombstone(
+            fixture.Id, fixture.Version, "reason-a", "maintainer", fixture.At.AddMinutes(2));
+        Throws<KnowledgeConflictException>(() => fixture.Registry.Tombstone(
+            fixture.Id, fixture.Version, "reason-b", "maintainer", fixture.At.AddMinutes(3)));
+        Throws<ArgumentException>(() => fixture.Registry.Tombstone(
+            fixture.Id, fixture.Version, " ", "maintainer", fixture.At.AddMinutes(3)));
+    }
+
+    private static void ReplayExactRejectsForeignSequence()
+    {
+        using var fixture = new RegistryFixture();
+        fixture.Register();
+        var second = fixture.Pack() with { Version = new KnowledgeVersion("0.2.0") };
+        fixture.Registry.Register(
+            second,
+            [new ArtifactRegistration("ART-001", "{}"u8.ToArray())],
+            "author",
+            fixture.At.AddMinutes(1));
+        var ownSequence = fixture.Registry.Audit(fixture.Id, fixture.Version).Single().Sequence;
+        var foreignSequence = fixture.Registry.Audit(second.KnowledgeId, second.Version).Single().Sequence;
+        Equal(KnowledgeLifecycleState.Draft,
+            fixture.Registry.ReplayExact(fixture.Id, fixture.Version, ownSequence).State);
+        Throws<ArgumentOutOfRangeException>(() => fixture.Registry.ReplayExact(fixture.Id, fixture.Version, 0));
+        Throws<KnowledgeNotFoundException>(() =>
+            fixture.Registry.ReplayExact(fixture.Id, fixture.Version, foreignSequence));
+        Throws<KnowledgeNotFoundException>(() =>
+            fixture.Registry.ReplayExact(fixture.Id, fixture.Version, foreignSequence + 100));
+    }
+
+    private static void ConcurrentTerminalTransition()
+    {
+        using var fixture = new RegistryFixture();
+        fixture.Register();
+        fixture.Registry.UpgradeContract(
+            fixture.Id, fixture.Version, KnowledgeContractVersions.V1_1, "maintainer", fixture.At.AddMinutes(1));
+        var successes = 0;
+        var conflicts = 0;
+        using var competingRegistry = fixture.OpenAdditionalRegistry();
+        Parallel.Invoke(
+            () => TryTombstone(fixture.Registry, "concurrent-a"),
+            () => TryTombstone(competingRegistry, "concurrent-b"));
+        Equal(1, successes);
+        Equal(1, conflicts);
+        Equal(1, fixture.Registry.Audit(fixture.Id, fixture.Version).Count(item => item.EventType == "TOMBSTONED"));
+
+        void TryTombstone(KnowledgeRegistry registry, string reason)
+        {
+            try
+            {
+                registry.Tombstone(
+                    fixture.Id, fixture.Version, reason, "maintainer", fixture.At.AddMinutes(2));
+                Interlocked.Increment(ref successes);
+            }
+            catch (KnowledgeConflictException)
+            {
+                Interlocked.Increment(ref conflicts);
+            }
+        }
+    }
+
+    private static void V11LifecycleSchemas()
+    {
+        using var fixture = new RegistryFixture();
+        fixture.Register();
+        fixture.Registry.UpgradeContract(
+            fixture.Id, fixture.Version, KnowledgeContractVersions.V1_1, "maintainer", fixture.At.AddMinutes(1));
+        var pack = fixture.Registry.Tombstone(
+            fixture.Id, fixture.Version, "synthetic retirement", "maintainer", fixture.At.AddMinutes(2));
+        Equal(0, ValidateSchema(
+            JsonSerializer.Serialize(pack, KnowledgeJson.Options),
+            "knowledge-pack.schema.json",
+            "v1.1").Count);
+        foreach (var audit in fixture.Registry.Audit(fixture.Id, fixture.Version))
+        {
+            Equal(0, ValidateSchema(
+                JsonSerializer.Serialize(audit, KnowledgeJson.Options),
+                "knowledge-audit-event.schema.json",
+                "v1.1").Count);
+        }
+    }
+
     private static void FixedSelectsReleased()
     {
         using var fixture = new RegistryFixture();
@@ -486,16 +762,71 @@ internal static class Program
             "knowledge-resolution-result.schema.json").Count);
     }
 
-    private static IReadOnlyList<string> ValidateSchema(string instance, string schemaName) =>
+    private static IReadOnlyList<string> ValidateSchema(
+        string instance,
+        string schemaName,
+        string schemaVersion = "v1.0") =>
         FullSpectrum.Knowledge.TestHost.SchemaSubsetValidator.Validate(
             instance,
-            File.ReadAllText(Path.Combine(Root(), "schemas", "knowledge", "v1.0", schemaName)));
+            File.ReadAllText(Path.Combine(Root(), "schemas", "knowledge", schemaVersion, schemaName)));
 
     private static void FixedRejectsSubjectDigest()
     {
         using var fixture = new RegistryFixture();
         var request = fixture.Request() with { SubjectDigest = "NOT-A-DIGEST" };
         Throws<ArgumentException>(() => fixture.Resolver.Resolve(request, []));
+    }
+
+    private static void FixedAcceptsV11()
+    {
+        using var fixture = ReleasedFixture();
+        var result = fixture.Resolver.Resolve(
+            fixture.Request() with
+            {
+                ContractVersion = KnowledgeContractVersions.V1_1,
+                RequestId = "REQ-K003-V11"
+            },
+            [fixture.Candidate()]);
+        var request = fixture.Request() with
+        {
+            ContractVersion = KnowledgeContractVersions.V1_1,
+            RequestId = "REQ-K003-V11"
+        };
+        Equal(0, ValidateSchema(
+            JsonSerializer.Serialize(request, KnowledgeJson.Options),
+            "knowledge-resolution-request.schema.json",
+            "v1.1").Count);
+        Equal(KnowledgeContractVersions.V1_1, result.ContractVersion);
+        Equal(KnowledgeResolutionMode.FixedOnly, result.Mode);
+        Equal(KnowledgeResolutionStatus.Succeeded, result.Status);
+        Equal(0, ValidateSchema(
+            JsonSerializer.Serialize(result, KnowledgeJson.Options),
+            "knowledge-resolution-result.schema.json",
+            "v1.1").Count);
+        var evidence = fixture.Evidence.Build(
+            result,
+            [new SlotCoverageExpectation("SLOT-SAFETY", KnowledgeGranularity.Model)],
+            new Dictionary<string, KnowledgeGranularity>
+            {
+                [result.Selected.Single().BindingId] = KnowledgeGranularity.Model
+            });
+        Equal(KnowledgeContractVersions.V1_1, evidence.ContractVersion);
+        Equal(0, ValidateSchema(
+            JsonSerializer.Serialize(evidence, KnowledgeJson.Options),
+            "knowledge-resolution-evidence.schema.json",
+            "v1.1").Count);
+    }
+
+    private static void FixedRejectsUnknownContract()
+    {
+        using var fixture = ReleasedFixture();
+        Throws<ArgumentException>(() => fixture.Resolver.Resolve(
+            fixture.Request() with
+            {
+                ContractVersion = "knowledge-contract/2.0.0",
+                RequestId = "REQ-K003-UNKNOWN"
+            },
+            [fixture.Candidate()]));
     }
 
     private static void TraceRecordsBindings()
@@ -796,7 +1127,9 @@ internal static class Program
         var profile = SyntheticDomainProfile();
         var binding = profile.Bindings[0] with
         {
-            KnowledgeId = fixture.Id, Version = fixture.Version, ArtifactId = "ART-001"
+            KnowledgeId = fixture.Id,
+            Version = fixture.Version,
+            ArtifactId = "ART-001"
         };
         var mapped = DomainResolutionPlanner.MapSelectedGranularities(profile with { Bindings = [binding] }, result);
         Equal(KnowledgeGranularity.Model, mapped[result.Selected.Single().BindingId]);
@@ -824,9 +1157,14 @@ internal static class Program
     {
         var json = JsonSerializer.Serialize(new
         {
-            sequence = 1, knowledge_id = "KG-DEMO-AUDIT", version = "1.0.0+build",
-            event_type = "REGISTERED", from_state = (string?)null, to_state = "DRAFT",
-            actor = "author", occurred_at_utc = "2026-07-24T00:00:00Z",
+            sequence = 1,
+            knowledge_id = "KG-DEMO-AUDIT",
+            version = "1.0.0+build",
+            event_type = "REGISTERED",
+            from_state = (string?)null,
+            to_state = "DRAFT",
+            actor = "author",
+            occurred_at_utc = "2026-07-24T00:00:00Z",
             details = new Dictionary<string, string>()
         }, KnowledgeJson.Options);
         True(ValidateSchema(json, "knowledge-audit-event.schema.json").Count > 0);
@@ -861,6 +1199,100 @@ internal static class Program
     private static void ReleaseManifestSchema() => Equal(0, ValidateSchema(
         File.ReadAllText(Path.Combine(Root(), "docs", "release", "v0.1.0-alpha", "RELEASE_MANIFEST.json")),
         "release-manifest.schema.json").Count);
+
+    private static void LibraryApiCompatibility()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"fskg-library-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            var databasePath = Path.Combine(root, "metadata.sqlite3");
+            var artifactRoot = Path.Combine(root, "artifacts");
+            var id = new KnowledgeId("KG-DEMO-LIBRARY");
+            var version = new KnowledgeVersion("0.1.0");
+            var reference = new KnowledgeReference(id, version);
+            var at = DateTimeOffset.Parse("2026-08-27T00:00:00Z");
+            var pack = SyntheticPack() with { KnowledgeId = id, Version = version, State = KnowledgeLifecycleState.Draft };
+
+            using (var v01Registry = new KnowledgeRegistry(databasePath, artifactRoot))
+            {
+                v01Registry.Register(
+                    pack,
+                    [new ArtifactRegistration("ART-001", "{}"u8.ToArray())],
+                    "author",
+                    at);
+                v01Registry.SubmitReview(id, version, "reviewer", at.AddMinutes(1));
+                v01Registry.Release(id, version, "publisher", at.AddMinutes(2));
+            }
+
+            using IKnowledgeLibrary library = new KnowledgeLibrary(databasePath, artifactRoot);
+            Equal(KnowledgeContractVersions.V1_0, library.Get(reference).ContractVersion);
+            Equal("{}", System.Text.Encoding.UTF8.GetString(library.ReadArtifact(reference, "ART-001")));
+            var request = new KnowledgeResolutionRequest(
+                KnowledgeContractVersions.V1_0,
+                "REQ-LIBRARY-001",
+                KnowledgeResolutionMode.FixedOnly,
+                new string('a', 64),
+                ["SLOT-SAFETY"],
+                new Dictionary<string, string> { ["fixture_status"] = "SYNTHETIC_ONLY" });
+            var result = library.ResolveFixed(new FixedKnowledgeCall(
+                request,
+                [new FixedKnowledgeCandidate("SLOT-SAFETY", id, version, "ART-001")]));
+            Equal(KnowledgeResolutionStatus.Succeeded, result.Status);
+            Equal(result.ResultDigest, library.GetResolution(result.ResolutionId).ResultDigest);
+            var evidence = library.BuildEvidence(
+                result.ResolutionId,
+                [new SlotCoverageExpectation("SLOT-SAFETY", KnowledgeGranularity.Model)],
+                new Dictionary<string, KnowledgeGranularity>
+                {
+                    [result.Selected.Single().BindingId] = KnowledgeGranularity.Model
+                });
+            Equal(evidence.EvidenceDigest, library.GetEvidence(evidence.EvidenceId).EvidenceDigest);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
+    private static void ReferenceAdapterRoundTrip()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"fskg-adapter-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            using IKnowledgeLibrary library = new KnowledgeLibrary(
+                Path.Combine(root, "metadata.sqlite3"),
+                Path.Combine(root, "artifacts"));
+            var pack = SyntheticPack() with { State = KnowledgeLifecycleState.Draft };
+            var reference = new KnowledgeReference(pack.KnowledgeId, pack.Version);
+            library.Register(
+                pack,
+                [new ArtifactRegistration("ART-001", "{}"u8.ToArray())],
+                "author",
+                pack.CreatedAtUtc);
+            library.SubmitReview(reference, "reviewer", pack.CreatedAtUtc.AddMinutes(1));
+            library.Release(reference, "publisher", pack.CreatedAtUtc.AddMinutes(2));
+
+            var request = new ContractFixedRequest(
+                new KnowledgeResolutionRequest(
+                    KnowledgeContractVersions.V1_0,
+                    "REQ-ADAPTER-001",
+                    KnowledgeResolutionMode.FixedOnly,
+                    new string('a', 64),
+                    ["SLOT-SAFETY"],
+                    new Dictionary<string, string>()),
+                [new FixedKnowledgeCandidate("SLOT-SAFETY", pack.KnowledgeId, pack.Version, "ART-001")]);
+            var response = library.Resolve(request, new ContractFixedKnowledgeAdapter());
+            Equal(request.Request.RequestId, response.Result.RequestId);
+            Equal(KnowledgeResolutionStatus.Succeeded, response.Result.Status);
+            Equal(KnowledgeResolutionMode.FixedOnly, response.Result.Mode);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
 
     private static IReadOnlyList<string> ValidateFixture() => Validate(File.ReadAllText(FixturePath()));
 
@@ -1010,6 +1442,8 @@ internal static class Program
             Resolver = new FixedKnowledgeResolver(Registry);
             Evidence = new ResolutionEvidenceBuilder(Registry);
         }
+
+        internal KnowledgeRegistry OpenAdditionalRegistry() => Open();
 
         private KnowledgeRegistry Open() => new(
             Path.Combine(root, "metadata.sqlite3"),

@@ -59,6 +59,10 @@ public sealed class KnowledgeRegistry : IDisposable
         DateTimeOffset occurredAtUtc)
     {
         RequireActor(actor);
+        if (!KnowledgeContractVersions.IsSupported(pack.ContractVersion))
+        {
+            throw new ArgumentException("Unsupported contract version.", nameof(pack));
+        }
         if (pack.State != KnowledgeLifecycleState.Draft)
         {
             throw new ArgumentException("New packs must be registered in DRAFT state.", nameof(pack));
@@ -133,6 +137,142 @@ public sealed class KnowledgeRegistry : IDisposable
     public KnowledgePack Supersede(KnowledgeId id, KnowledgeVersion version, string actor, DateTimeOffset at) =>
         Transition(id, version, KnowledgeLifecycleState.Released, KnowledgeLifecycleState.Superseded, "SUPERSEDED", actor, at);
 
+    public KnowledgePack UpgradeContract(
+        KnowledgeId id,
+        KnowledgeVersion version,
+        string targetContractVersion,
+        string actor,
+        DateTimeOffset at)
+    {
+        RequireActor(actor);
+        if (!string.Equals(targetContractVersion, KnowledgeContractVersions.V1_1, StringComparison.Ordinal))
+        {
+            throw new ArgumentException("Only the explicit v1.0 to v1.1 upgrade is supported.", nameof(targetContractVersion));
+        }
+
+        return database.Transaction(() =>
+        {
+            var current = Get(id, version);
+            if (string.Equals(current.ContractVersion, targetContractVersion, StringComparison.Ordinal))
+            {
+                if (AuditContains(id, version, "CONTRACT_UPGRADED", new Dictionary<string, string>
+                {
+                    ["from_contract_version"] = KnowledgeContractVersions.V1_0,
+                    ["to_contract_version"] = KnowledgeContractVersions.V1_1
+                }))
+                {
+                    return current;
+                }
+                throw new KnowledgeConflictException("Contract is already v1.1 without a matching upgrade record.");
+            }
+            if (!string.Equals(current.ContractVersion, KnowledgeContractVersions.V1_0, StringComparison.Ordinal))
+            {
+                throw new KnowledgeConflictException(
+                    $"Contract '{current.ContractVersion}' cannot be upgraded to '{targetContractVersion}'.");
+            }
+
+            var updated = current with { ContractVersion = targetContractVersion };
+            var json = DeterministicJson.Canonicalize(JsonSerializer.Serialize(updated, KnowledgeJson.Options));
+            var changed = database.Execute(
+                "UPDATE knowledge_packs SET pack_json=? WHERE knowledge_id=? AND version=? AND pack_json=?;",
+                json,
+                id.Value,
+                version.Value,
+                DeterministicJson.Canonicalize(JsonSerializer.Serialize(current, KnowledgeJson.Options)));
+            if (changed != 1) throw new KnowledgeConflictException("Concurrent contract upgrade detected.");
+            AppendAudit(updated, "CONTRACT_UPGRADED", current.State, current.State, actor, at,
+                new Dictionary<string, string>
+                {
+                    ["from_contract_version"] = KnowledgeContractVersions.V1_0,
+                    ["to_contract_version"] = KnowledgeContractVersions.V1_1
+                });
+            return updated;
+        });
+    }
+
+    public KnowledgePack Supersede(
+        KnowledgeId id,
+        KnowledgeVersion version,
+        KnowledgeReference replacement,
+        string actor,
+        DateTimeOffset at)
+    {
+        RequireActor(actor);
+        if (replacement.KnowledgeId != id || replacement.Version == version)
+        {
+            throw new ArgumentException(
+                "A superseding reference must name a different version of the same Knowledge ID.",
+                nameof(replacement));
+        }
+        var details = new Dictionary<string, string>
+        {
+            ["replacement_knowledge_id"] = replacement.KnowledgeId.Value,
+            ["replacement_version"] = replacement.Version.Value
+        };
+
+        return database.Transaction(() =>
+        {
+            var current = Get(id, version);
+            if (current.State == KnowledgeLifecycleState.Superseded)
+            {
+                if (AuditContains(id, version, "SUPERSEDED", details)) return current;
+                throw new KnowledgeConflictException("Pack was superseded by a different exact reference.");
+            }
+            if (current.State != KnowledgeLifecycleState.Released)
+            {
+                throw new KnowledgeConflictException(
+                    $"Transition {current.State} -> Superseded is not allowed for '{id}/{version}'.");
+            }
+            var replacementPack = Get(replacement.KnowledgeId, replacement.Version);
+            if (replacementPack.State != KnowledgeLifecycleState.Released)
+            {
+                throw new KnowledgeConflictException("The exact superseding pack must be RELEASED.");
+            }
+            return TransitionWithinTransaction(
+                current,
+                KnowledgeLifecycleState.Released,
+                KnowledgeLifecycleState.Superseded,
+                "SUPERSEDED",
+                actor,
+                at,
+                details);
+        });
+    }
+
+    public KnowledgePack Tombstone(
+        KnowledgeId id,
+        KnowledgeVersion version,
+        string reason,
+        string actor,
+        DateTimeOffset at)
+    {
+        RequireActor(actor);
+        ArgumentException.ThrowIfNullOrWhiteSpace(reason);
+        var details = new Dictionary<string, string> { ["reason"] = reason };
+
+        return database.Transaction(() =>
+        {
+            var current = Get(id, version);
+            if (current.State == KnowledgeLifecycleState.Tombstoned)
+            {
+                if (AuditContains(id, version, "TOMBSTONED", details)) return current;
+                throw new KnowledgeConflictException("Pack was tombstoned with different details.");
+            }
+            if (!string.Equals(current.ContractVersion, KnowledgeContractVersions.V1_1, StringComparison.Ordinal))
+            {
+                throw new KnowledgeConflictException("Tombstone requires an explicit upgrade to knowledge-contract/1.1.0.");
+            }
+            return TransitionWithinTransaction(
+                current,
+                current.State,
+                KnowledgeLifecycleState.Tombstoned,
+                "TOMBSTONED",
+                actor,
+                at,
+                details);
+        });
+    }
+
     public IReadOnlyList<KnowledgeAuditEvent> Audit(KnowledgeId id, KnowledgeVersion version) =>
         database.Query(
             """
@@ -160,6 +300,18 @@ public sealed class KnowledgeRegistry : IDisposable
             .ToArray();
         if (events.Length == 0) throw new KnowledgeNotFoundException($"No audit history for '{id}/{version}'.");
         return new KnowledgeReplay(id, version, events[^1].Sequence, events[^1].ToState, events);
+    }
+
+    public KnowledgeReplay ReplayExact(KnowledgeId id, KnowledgeVersion version, long sequence)
+    {
+        if (sequence <= 0) throw new ArgumentOutOfRangeException(nameof(sequence));
+        var events = Audit(id, version).Where(item => item.Sequence <= sequence).ToArray();
+        if (events.Length == 0 || events[^1].Sequence != sequence)
+        {
+            throw new KnowledgeNotFoundException(
+                $"Audit sequence '{sequence}' does not belong to '{id}/{version}'.");
+        }
+        return new KnowledgeReplay(id, version, sequence, events[^1].ToState, events);
     }
 
     public byte[] ReadArtifact(KnowledgeId id, KnowledgeVersion version, string artifactId)
@@ -304,19 +456,31 @@ public sealed class KnowledgeRegistry : IDisposable
                 throw new KnowledgeConflictException(
                     $"Transition {current.State} -> {next} is not allowed for '{id}/{version}'.");
             }
-            var updated = current with { State = next };
-            var json = DeterministicJson.Canonicalize(JsonSerializer.Serialize(updated, KnowledgeJson.Options));
-            var changed = database.Execute(
-                "UPDATE knowledge_packs SET state=?,pack_json=? WHERE knowledge_id=? AND version=? AND state=?;",
-                State(next),
-                json,
-                id.Value,
-                version.Value,
-                State(expected));
-            if (changed != 1) throw new KnowledgeConflictException("Concurrent lifecycle update detected.");
-            AppendAudit(updated, eventType, expected, next, actor, at);
-            return updated;
+            return TransitionWithinTransaction(current, expected, next, eventType, actor, at);
         });
+    }
+
+    private KnowledgePack TransitionWithinTransaction(
+        KnowledgePack current,
+        KnowledgeLifecycleState expected,
+        KnowledgeLifecycleState next,
+        string eventType,
+        string actor,
+        DateTimeOffset at,
+        IReadOnlyDictionary<string, string>? details = null)
+    {
+        var updated = current with { State = next };
+        var json = DeterministicJson.Canonicalize(JsonSerializer.Serialize(updated, KnowledgeJson.Options));
+        var changed = database.Execute(
+            "UPDATE knowledge_packs SET state=?,pack_json=? WHERE knowledge_id=? AND version=? AND state=?;",
+            State(next),
+            json,
+            current.KnowledgeId.Value,
+            current.Version.Value,
+            State(expected));
+        if (changed != 1) throw new KnowledgeConflictException("Concurrent lifecycle update detected.");
+        AppendAudit(updated, eventType, expected, next, actor, at, details);
+        return updated;
     }
 
     private void AppendAudit(
@@ -325,7 +489,8 @@ public sealed class KnowledgeRegistry : IDisposable
         KnowledgeLifecycleState? from,
         KnowledgeLifecycleState to,
         string actor,
-        DateTimeOffset at)
+        DateTimeOffset at,
+        IReadOnlyDictionary<string, string>? details = null)
     {
         database.Insert(
             """
@@ -340,7 +505,29 @@ public sealed class KnowledgeRegistry : IDisposable
             State(to),
             actor,
             at.ToUniversalTime().ToString("O"),
-            "{}");
+            DeterministicJson.Canonicalize(JsonSerializer.Serialize(
+                details ?? new Dictionary<string, string>(), KnowledgeJson.Options)));
+    }
+
+    private bool AuditContains(
+        KnowledgeId id,
+        KnowledgeVersion version,
+        string eventType,
+        IReadOnlyDictionary<string, string> details)
+    {
+        var rows = database.Query(
+            """
+            SELECT event_type,details_json FROM knowledge_audit
+            WHERE knowledge_id=? AND version=? AND event_type=? ORDER BY sequence;
+            """,
+            row => (EventType: row.Text(0), Details: row.Text(1)),
+            id.Value,
+            version.Value,
+            eventType);
+        var expected = DeterministicJson.Canonicalize(JsonSerializer.Serialize(details, KnowledgeJson.Options));
+        return rows.Any(row =>
+            string.Equals(row.EventType, eventType, StringComparison.Ordinal) &&
+            string.Equals(row.Details, expected, StringComparison.Ordinal));
     }
 
     private static string State(KnowledgeLifecycleState state) =>

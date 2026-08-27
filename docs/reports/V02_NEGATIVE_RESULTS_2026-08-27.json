@@ -1,0 +1,27 @@
+{
+  "status": "PASS",
+  "date": "2026-08-27",
+  "test_data": "SYNTHETIC_ONLY",
+  "cases": [
+    { "case": "register_exact_identity_overwrite", "expected": "KnowledgeConflictException", "result": "PASS" },
+    { "case": "artifact_digest_mismatch", "expected": "ArgumentException", "result": "PASS" },
+    { "case": "invalid_release_transition", "expected": "KnowledgeConflictException", "result": "PASS" },
+    { "case": "upgrade_unknown_contract", "expected": "ArgumentException", "result": "PASS" },
+    { "case": "supersede_self_reference", "expected": "ArgumentException", "result": "PASS" },
+    { "case": "supersede_other_knowledge_id", "expected": "ArgumentException", "result": "PASS" },
+    { "case": "supersede_non_released_replacement", "expected": "KnowledgeConflictException", "result": "PASS" },
+    { "case": "supersede_conflicting_retry", "expected": "KnowledgeConflictException", "result": "PASS" },
+    { "case": "tombstone_without_v1_1_upgrade", "expected": "KnowledgeConflictException", "result": "PASS" },
+    { "case": "tombstone_blank_reason", "expected": "ArgumentException", "result": "PASS" },
+    { "case": "tombstone_conflicting_retry", "expected": "KnowledgeConflictException", "result": "PASS" },
+    { "case": "replay_zero_sequence", "expected": "ArgumentOutOfRangeException", "result": "PASS" },
+    { "case": "replay_foreign_sequence", "expected": "KnowledgeNotFoundException", "result": "PASS" },
+    { "case": "replay_future_sequence", "expected": "KnowledgeNotFoundException", "result": "PASS" },
+    { "case": "concurrent_competing_terminal_transition", "expected": "one success and one conflict", "result": "PASS" },
+    { "case": "fixed_dynamic_or_hybrid_mode", "expected": "ArgumentException", "result": "PASS" },
+    { "case": "fixed_unknown_contract", "expected": "ArgumentException", "result": "PASS" },
+    { "case": "fixed_ambiguous_released_candidates", "expected": "explicit UNKNOWN and failed closed", "result": "PASS" },
+    { "case": "fixed_unbound_slot", "expected": "explicit UNKNOWN and failed closed", "result": "PASS" },
+    { "case": "v0_1_baseline_hash_drift", "expected": "gate failure", "result": "PASS" }
+  ]
+}

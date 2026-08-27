@@ -4,6 +4,18 @@ Current release: `v0.1.0-alpha` (Alpha Technical Preview / Gitee and GitHub Prer
 
 Windows x64 is verified; Linux and macOS are not executed. The release includes local fixed-knowledge registration, FIXED_ONLY resolution, evidence sidecars, versioned domain profiles, five-level taxonomy, slots, exact bindings, and deterministic planning. It excludes dynamic knowledge, LLMs, vector databases, Skills, and Observer/Engine adapters.
 
+The approved future direction, which is not implemented or released, keeps
+controlled dynamic knowledge snapshots and separate fixed/dynamic/hybrid
+knowledge-resolution tracks. It also separates release reproducibility from
+deployment-profile production readiness. See ADR-010, ADR-011, ADR-012, and
+`docs/planning/approved-capability-boundaries-2026-08-27.md`.
+
+The Owner-approved `v0.2.0-alpha` implementation is an unreleased working-tree
+candidate. It is limited to fixed-lifecycle completion, an in-process
+`FIXED_ONLY` Library API and Adapter SPI, and v0.1.x compatibility gates. It
+does not change the current release identity. Run
+`scripts/verify-v0.2.0-alpha.ps1` for its local engineering gate.
+
 Run `scripts/verify-k0-05.ps1` for locked restore, Release build, full regression, and Golden verification.
 
 An independent, local-first knowledge supply and governance system. It turns source material into immutable knowledge artifacts with identity, exact versions, lifecycle state, content digests, applicability, audit records, and replay semantics.

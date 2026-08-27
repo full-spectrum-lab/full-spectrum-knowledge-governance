@@ -5,6 +5,13 @@
 - Align public documentation with the published `v0.1.0-alpha`.
 - Prepare release identity, offline evidence, platform-locked packaging and stricter contracts.
 - Mirror the original `v0.1.0-alpha` tag, release commit and Windows x64 artifact to GitHub without rebuilding or retagging.
+- Record approved future K2 knowledge-source/snapshot, K3 knowledge-resolution,
+  and K6 release/production boundary decisions without claiming implementation.
+- Approve the bounded v0.2.0-alpha scope: K1 lifecycle completion, a narrow
+  FIXED_ONLY Library API and Adapter SPI, and v0.1.x compatibility gates.
+- Implement an unreleased v0.2 engineering candidate with additive v1.1
+  Tombstone contracts, exact Supersede/Replay, an in-process Library/Adapter
+  boundary, and byte-locked v0.1 schema/Golden compatibility checks.
 
 ## v0.1.0-alpha — 2026-07-24
 

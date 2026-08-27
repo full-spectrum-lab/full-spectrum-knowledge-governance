@@ -1,0 +1,149 @@
+  正在确定要还原的项目…
+  所有项目均是最新的，无法还原。
+  FullSpectrum.Knowledge.Contracts -> C:\Users\wangjian0926\Desktop\codex专属仓库\_public_narrative_batch_b2\full-spectrum-knowledge-governance\src\FullSpectrum.Knowledge.Contracts\bin\Release\net10.0\FullSpectrum.Knowledge.Contracts.dll
+  FullSpectrum.Knowledge.Domain -> C:\Users\wangjian0926\Desktop\codex专属仓库\_public_narrative_batch_b2\full-spectrum-knowledge-governance\src\FullSpectrum.Knowledge.Domain\bin\Release\net10.0\FullSpectrum.Knowledge.Domain.dll
+  FullSpectrum.Knowledge.Storage -> C:\Users\wangjian0926\Desktop\codex专属仓库\_public_narrative_batch_b2\full-spectrum-knowledge-governance\src\FullSpectrum.Knowledge.Storage\bin\Release\net10.0\FullSpectrum.Knowledge.Storage.dll
+  FullSpectrum.Knowledge.Trace -> C:\Users\wangjian0926\Desktop\codex专属仓库\_public_narrative_batch_b2\full-spectrum-knowledge-governance\src\FullSpectrum.Knowledge.Trace\bin\Release\net10.0\FullSpectrum.Knowledge.Trace.dll
+  FullSpectrum.Knowledge.Fixed -> C:\Users\wangjian0926\Desktop\codex专属仓库\_public_narrative_batch_b2\full-spectrum-knowledge-governance\src\FullSpectrum.Knowledge.Fixed\bin\Release\net10.0\FullSpectrum.Knowledge.Fixed.dll
+  FullSpectrum.Knowledge.TestHost -> C:\Users\wangjian0926\Desktop\codex专属仓库\_public_narrative_batch_b2\full-spectrum-knowledge-governance\src\FullSpectrum.Knowledge.TestHost\bin\Release\net10.0\FullSpectrum.Knowledge.TestHost.dll
+  FullSpectrum.Knowledge.Library -> C:\Users\wangjian0926\Desktop\codex专属仓库\_public_narrative_batch_b2\full-spectrum-knowledge-governance\src\FullSpectrum.Knowledge.Library\bin\Release\net10.0\FullSpectrum.Knowledge.Library.dll
+  FullSpectrum.Knowledge.Tests -> C:\Users\wangjian0926\Desktop\codex专属仓库\_public_narrative_batch_b2\full-spectrum-knowledge-governance\tests\FullSpectrum.Knowledge.Tests\bin\Release\net10.0\FullSpectrum.Knowledge.Tests.dll
+
+已成功生成。
+    0 个警告
+    0 个错误
+
+已用时间 00:00:01.48
+[PASS] KnowledgeId accepts a valid identifier
+[PASS] KnowledgeId rejects lowercase identifiers
+[PASS] KnowledgeVersion accepts SemVer
+[PASS] KnowledgeVersion rejects latest
+[PASS] Lifecycle v1.1 adds tombstone without changing v1.0 schema
+[PASS] Pack serialization round-trip preserves identity
+[PASS] Canonical JSON ignores object property order
+[PASS] Digest is stable across property order
+[PASS] Digest uses lowercase SHA-256
+[PASS] Resolution serializes UNKNOWN explicitly
+[PASS] Schema documents declare Draft 2020-12
+[PASS] Synthetic fixture conforms to pack schema subset
+[PASS] Schema rejects a missing required property
+[PASS] Schema rejects an additional property
+[PASS] Schema rejects latest as a version
+[PASS] Repository has no Observer or Engine project references
+[PASS] Registry persists a draft across restart
+[PASS] Registry rejects exact identity overwrite
+[PASS] Artifact store rejects digest mismatch
+[PASS] Lifecycle follows draft review release revoke
+[PASS] Lifecycle rejects an invalid release
+[PASS] Released artifact remains readable after revoke
+[PASS] Audit records every governance transition
+[PASS] Replay reconstructs historical state
+[PASS] Registry keeps exact versions independent
+[PASS] Registry reports missing identity
+[PASS] Audit event conforms to its schema
+[PASS] v0.1 schema and Golden baseline hashes are unchanged
+[PASS] Contract upgrade preserves exact identity and artifact
+[PASS] Contract upgrade is idempotent only for the same target
+[PASS] Complete supersede records an exact released replacement
+[PASS] Complete supersede rejects invalid replacement references
+[PASS] Complete supersede retry rejects different replacement
+[PASS] Tombstone requires an explicit v1.1 upgrade
+[PASS] Tombstone is idempotent and preserves immutable content
+[PASS] Tombstone rejects a conflicting retry
+[PASS] Exact replay rejects a foreign audit sequence
+[PASS] Concurrent terminal transitions preserve one fact
+[PASS] v1.1 pack and audit conform to additive schemas
+[PASS] Fixed resolution selects one exact released candidate
+[PASS] Fixed resolution excludes a draft candidate
+[PASS] Fixed resolution excludes a revoked candidate
+[PASS] Fixed resolution fails closed when slot is unbound
+[PASS] Fixed resolution fails closed on ambiguity
+[PASS] Fixed resolution keeps exact versions distinct
+[PASS] Fixed resolution is deterministic
+[PASS] Fixed resolution survives registry restart
+[PASS] Fixed resolution rejects non-fixed mode
+[PASS] Fixed resolution rejects duplicate required slots
+[PASS] Fixed resolution rejects request-id payload conflict
+[PASS] Fixed candidate conforms to its schema
+[PASS] Fixed result conforms to its schema
+[PASS] Fixed resolution rejects an invalid subject digest
+[PASS] Fixed resolution accepts the known v1.1 contract
+[PASS] Fixed resolution rejects an unknown contract
+[PASS] Trace records selected and unresolved bindings
+[PASS] Coverage is complete at required granularity
+[PASS] Coverage reports generalized industry knowledge
+[PASS] Coverage is insufficient when all slots are missing
+[PASS] Coverage preserves unknown granularity
+[PASS] Evidence explain output is deterministic
+[PASS] Evidence survives registry restart
+[PASS] Evidence rejects mismatched expectations
+[PASS] Evidence prevents overwrite for one resolution
+[PASS] Granularity defines five frozen values
+[PASS] Trace preserves resolver reason codes
+[PASS] Match trace conforms to its schema
+[PASS] Coverage conforms to its schema
+[PASS] Resolution evidence conforms to its schema
+[PASS] Released domain profile validates
+[PASS] Domain profile rejects duplicate taxonomy
+[PASS] Domain profile rejects unknown parent
+[PASS] Domain profile rejects taxonomy cycle
+[PASS] Domain profile rejects unknown binding slot
+[PASS] Domain profile rejects unbound required slot
+[PASS] Domain profile rejects non-feature trigger
+[PASS] Domain planner rejects domain mismatch
+[PASS] Domain planner filters candidates by facts
+[PASS] Domain planner is deterministic
+[PASS] Domain planner emits required expectations
+[PASS] Domain planner maps selected granularity
+[PASS] Domain profile conforms to its schema
+[PASS] Subject profile conforms to its schema
+[PASS] Domain resolution plan conforms to its schema
+[PASS] Audit schema accepts the C# KnowledgeId alphabet
+[PASS] Audit schema rejects build metadata like C#
+[PASS] Domain profile schema rejects an invalid binding version
+[PASS] Domain plan schema validates nested candidates
+[PASS] Release-state conflict resolves by authority
+[PASS] Release manifest conforms to its schema
+[PASS] Library API reopens v0.1 storage and resolves fixed knowledge
+[PASS] Reference Adapter SPI round-trips public contracts
+TOTAL=92 PASSED=92 FAILED=0
+{
+  "status": "PASS",
+  "profile_code": "PROFILE-DEMO",
+  "profile_version": "1.0.0",
+  "taxonomy_nodes": 4,
+  "required_slots": 1,
+  "candidates": 1,
+  "plan_sha256": "b6cd4e6647ef32f9ac4e0bee15e6e292340148231959b179862a49ac332e9087",
+  "golden_sha256": "e7b4282e40b0a1e3799de62304a1e17f2149acbccb8a0c2b1becee0ba492723d",
+  "actual_plan": {
+    "candidates": [
+      {
+        "artifact_id": "ART-001",
+        "knowledge_id": "KG-DEMO-DOMAIN",
+        "slot_id": "SLOT-SAFETY",
+        "version": "1.0.0"
+      }
+    ],
+    "expectations": [
+      {
+        "required_granularity": "MODEL",
+        "slot_id": "SLOT-SAFETY"
+      }
+    ],
+    "plan_digest": {
+      "algorithm": "SHA-256",
+      "value": "b6cd4e6647ef32f9ac4e0bee15e6e292340148231959b179862a49ac332e9087"
+    },
+    "profile_code": "PROFILE-DEMO",
+    "profile_version": "1.0.0",
+    "subject_id": "SUBJECT-DEMO"
+  },
+  "errors": []
+}
+KG_V0_1_REGRESSION=PASS
+KG_V0_2_LIFECYCLE=PASS
+KG_V0_2_LIBRARY_API=PASS
+KG_V0_2_ADAPTER_SPI=PASS
+KG_V0_2_COMPATIBILITY=PASS
+KG_V0_2_INTERNAL_ENGINEERING=PASS_PENDING_INDEPENDENT_REVERIFICATION

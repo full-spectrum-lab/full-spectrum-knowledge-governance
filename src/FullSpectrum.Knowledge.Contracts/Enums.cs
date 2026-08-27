@@ -6,7 +6,8 @@ public enum KnowledgeLifecycleState
     ReviewRequired,
     Released,
     Superseded,
-    Revoked
+    Revoked,
+    Tombstoned
 }
 
 public enum KnowledgeBindingStatus

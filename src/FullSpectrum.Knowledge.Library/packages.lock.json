@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net10.0": {
+      "fullspectrum.knowledge.contracts": {
+        "type": "Project"
+      },
+      "fullspectrum.knowledge.fixed": {
+        "type": "Project",
+        "dependencies": {
+          "FullSpectrum.Knowledge.Contracts": "[0.1.1-alpha, )",
+          "FullSpectrum.Knowledge.Storage": "[0.1.1-alpha, )"
+        }
+      },
+      "fullspectrum.knowledge.storage": {
+        "type": "Project",
+        "dependencies": {
+          "FullSpectrum.Knowledge.Contracts": "[0.1.1-alpha, )"
+        }
+      },
+      "fullspectrum.knowledge.trace": {
+        "type": "Project",
+        "dependencies": {
+          "FullSpectrum.Knowledge.Contracts": "[0.1.1-alpha, )",
+          "FullSpectrum.Knowledge.Storage": "[0.1.1-alpha, )"
+        }
+      }
+    }
+  }
+}

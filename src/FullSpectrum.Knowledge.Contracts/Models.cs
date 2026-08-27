@@ -1,5 +1,17 @@
 namespace FullSpectrum.Knowledge.Contracts;
 
+public static class KnowledgeContractVersions
+{
+    public const string V1_0 = "knowledge-contract/1.0.0";
+    public const string V1_1 = "knowledge-contract/1.1.0";
+
+    public static bool IsSupported(string value) =>
+        string.Equals(value, V1_0, StringComparison.Ordinal) ||
+        string.Equals(value, V1_1, StringComparison.Ordinal);
+}
+
+public sealed record KnowledgeReference(KnowledgeId KnowledgeId, KnowledgeVersion Version);
+
 public sealed record KnowledgeArtifact(
     string ArtifactId,
     string MediaType,

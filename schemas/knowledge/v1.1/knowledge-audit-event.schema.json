@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://full-spectrum-lab.example/schemas/knowledge/v1.1/knowledge-audit-event.schema.json",
+  "title": "Knowledge Audit Event v1.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "sequence",
+    "knowledge_id",
+    "version",
+    "event_type",
+    "from_state",
+    "to_state",
+    "actor",
+    "occurred_at_utc",
+    "details"
+  ],
+  "properties": {
+    "sequence": { "type": "integer", "minimum": 1 },
+    "knowledge_id": { "type": "string", "pattern": "^KG-[A-Z0-9][A-Z0-9._-]{2,63}$" },
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?$"
+    },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "REGISTERED",
+        "REVIEW_REQUESTED",
+        "RELEASED",
+        "SUPERSEDED",
+        "REVOKED",
+        "CONTRACT_UPGRADED",
+        "TOMBSTONED"
+      ]
+    },
+    "from_state": {
+      "type": ["string", "null"],
+      "enum": [null, "DRAFT", "REVIEW_REQUIRED", "RELEASED", "SUPERSEDED", "REVOKED", "TOMBSTONED"]
+    },
+    "to_state": {
+      "type": "string",
+      "enum": ["DRAFT", "REVIEW_REQUIRED", "RELEASED", "SUPERSEDED", "REVOKED", "TOMBSTONED"]
+    },
+    "actor": { "type": "string", "minLength": 1 },
+    "occurred_at_utc": { "type": "string", "format": "date-time" },
+    "details": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    }
+  }
+}

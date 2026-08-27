@@ -1,0 +1,26 @@
+{
+  "baseline": "v0.1.x-fixed-contract-and-synthetic-golden",
+  "algorithm": "SHA-256",
+  "entries": {
+    "schemas/knowledge/v1.0/common.schema.json": "1f5d32d1728808dfb4aba9043aae79e0faba73dbbe1c03f6fdc14117163ae9a7",
+    "schemas/knowledge/v1.0/coverage-assessment.schema.json": "b8779231c82dca8cdfbe95ce21ef78f90aa81b5d63b697cc1e13a42522607d71",
+    "schemas/knowledge/v1.0/domain-profile.schema.json": "1698e30028d86cee8dce7cc4e85f297501766b96f124527920694cecffa3f24a",
+    "schemas/knowledge/v1.0/domain-resolution-plan.schema.json": "83875e1f57cd402b552bbc37ccdd262d479cdbbecc561d078f6f0172f11a7129",
+    "schemas/knowledge/v1.0/fixed-knowledge-candidate.schema.json": "f8bda533bc61c11a4792beda9c873aab1cbeeb3f06d7a2aa6a07c7393a157480",
+    "schemas/knowledge/v1.0/knowledge-audit-event.schema.json": "2641ff739d3c8130b4bfd1e0428156048c123daf939560d3cc2a6d516aa7ba95",
+    "schemas/knowledge/v1.0/knowledge-match-trace.schema.json": "ade91d0fc3e04467ee21ee8382a37d6b11cc5b295566c948fa52c9053ff4045d",
+    "schemas/knowledge/v1.0/knowledge-pack.schema.json": "313d0233603b0715a4d22fae42d7ab130b4fbcee48648eceb9cb5df12072e590",
+    "schemas/knowledge/v1.0/knowledge-resolution-evidence.schema.json": "0c0a08ee944a68d7b331c51e49efbd55f4a35c8603209c4f836fea3e370af0c8",
+    "schemas/knowledge/v1.0/knowledge-resolution-request.schema.json": "ebefd96af18fe3fc20fed7b79d91ad06f3cb61eaa3a6fb46c07c50592fb563c8",
+    "schemas/knowledge/v1.0/knowledge-resolution-result.schema.json": "ed6857df5937beddd22b9797a752f1824d0bb369bbfa42de0ea9f1e32f10c1de",
+    "schemas/knowledge/v1.0/release-manifest.schema.json": "e1dae06d79e89b87db562a444bb304cda60dbd26c88c684b549632196024beb5",
+    "schemas/knowledge/v1.0/subject-profile.schema.json": "5f9ce8e5b3e5174e262ebb826b19d596605359550da3323bd1f2fff05a05a0a5",
+    "examples/governance/release-state-conflict.expected.json": "16dee7264d1c97dff6ae37d714a716ade52eca215317fa83dfa82eb4a377691b",
+    "examples/governance/release-state-conflict.input.json": "4e6e22bdb63336efbedfa5dbfb50986d6af42fa8e29931bcd51141bec33b82ca",
+    "examples/k0-01/knowledge-pack.synthetic.json": "4a2d1edc318224e911cec0f3e9282e61db21f844f71c752b31629071adcd134c",
+    "examples/k0-02/registry-replay.golden.json": "586c291f3f5252d1caeb83eb5af4ff94efdfe2ffa49100394e411d7fc2ae57ab",
+    "examples/k0-03/fixed-resolution.golden.json": "c5f5f52da0f7d9bf5bdd28baa0755eddfed657b1cfa56e003008e1004ce967f5",
+    "examples/k0-04/resolution-evidence.golden.json": "6d8e9ffc2c88a58c5a47db4ec837644e63127565a57a19f839a5667aa86e55b9",
+    "examples/k0-05/domain-resolution-plan.golden.json": "02b2696d5570bf6e5979a91aa5ce2431d3d04950eb54b854f71ea43b04a29999"
+  }
+}

@@ -18,6 +18,15 @@
           "FullSpectrum.Knowledge.Storage": "[0.1.1-alpha, )"
         }
       },
+      "fullspectrum.knowledge.library": {
+        "type": "Project",
+        "dependencies": {
+          "FullSpectrum.Knowledge.Contracts": "[0.1.1-alpha, )",
+          "FullSpectrum.Knowledge.Fixed": "[0.1.1-alpha, )",
+          "FullSpectrum.Knowledge.Storage": "[0.1.1-alpha, )",
+          "FullSpectrum.Knowledge.Trace": "[0.1.1-alpha, )"
+        }
+      },
       "fullspectrum.knowledge.storage": {
         "type": "Project",
         "dependencies": {
