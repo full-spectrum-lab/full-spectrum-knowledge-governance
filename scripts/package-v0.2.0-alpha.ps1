@@ -127,7 +127,27 @@ try {
     (Get-Item -LiteralPath $stage).LastWriteTimeUtc = $fixedTimestamp
 
     $archive = Join-Path $output "full-spectrum-knowledge-governance-v0.2.0-alpha-win-x64.zip"
-    Compress-Archive -Path "$stage/*" -DestinationPath $archive -CompressionLevel Optimal
+    Add-Type -AssemblyName System.IO.Compression
+    $archiveStream = [IO.File]::Open($archive, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+    $zip = [IO.Compression.ZipArchive]::new($archiveStream, [IO.Compression.ZipArchiveMode]::Create, $false)
+    try {
+        Get-ChildItem -LiteralPath $stage -File -Recurse | Sort-Object FullName | ForEach-Object {
+            $relative = $_.FullName.Substring($stage.Length).TrimStart('\').Replace('\','/')
+            $entry = $zip.CreateEntry($relative, [IO.Compression.CompressionLevel]::Optimal)
+            $entry.LastWriteTime = [DateTimeOffset]$fixedTimestamp
+            $sourceStream = [IO.File]::OpenRead($_.FullName)
+            $entryStream = $entry.Open()
+            try { $sourceStream.CopyTo($entryStream) }
+            finally {
+                $entryStream.Dispose()
+                $sourceStream.Dispose()
+            }
+        }
+    }
+    finally {
+        $zip.Dispose()
+        $archiveStream.Dispose()
+    }
     $archiveHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $archive).Hash.ToLowerInvariant()
     "$archiveHash  $(Split-Path -Leaf $archive)" | Set-Content -Encoding ascii (Join-Path $output "SHA256SUMS")
 
