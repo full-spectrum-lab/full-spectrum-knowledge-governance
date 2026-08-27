@@ -51,6 +51,17 @@ try {
     Copy-Item LICENSE,LICENSE-APACHE-2.0,LICENSE-MULANPSL-2.0,NOTICE,README.md,README.en.md,FullSpectrum.Knowledge.slnx -Destination $stage
     Copy-Item "docs/release/$version/*" -Destination $stage
 
+    @{
+        manifest_version = "1.0"
+        version = $version
+        release_commit = $commit
+        tag = "NOT_CREATED"
+        target = "win-x64"
+        package_layout = @{ cli = "bin"; library = "library"; schemas = "schemas"; examples = "examples" }
+        production_ready = $false
+        standard_json_schema_validator = "NOT_EXECUTED"
+    } | ConvertTo-Json -Depth 8 | Set-Content -Encoding utf8 (Join-Path $stage "PACKAGE_MANIFEST.json")
+
     $filesForSbom = Get-ChildItem -LiteralPath $stage -File -Recurse |
         Where-Object { $_.Name -notin @("SBOM.package.spdx.json", "SHA256SUMS") } |
         Sort-Object FullName

@@ -9,8 +9,8 @@
 ## Install
 
 Extract the archive to a new directory. Keep `bin/`, `library/`, `schemas/`, `examples/`,
-the license files, and `SHA256SUMS` together. Verify the archive against the external
-`SHA256SUMS` file, then verify package files with:
+the license files, `PACKAGE_MANIFEST.json`, and `SHA256SUMS` together. Verify the archive
+against the external `SHA256SUMS` and `RELEASE_MANIFEST.json`, then verify package files with:
 
 ```powershell
 Get-Content .\SHA256SUMS | ForEach-Object {

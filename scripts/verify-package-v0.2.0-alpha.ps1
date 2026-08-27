@@ -1,5 +1,6 @@
 param(
     [Parameter(Mandatory = $true)][string]$Package,
+    [Parameter(Mandatory = $true)][string]$ReleaseManifest,
     [Parameter(Mandatory = $true)][string]$ExpectedSha256,
     [Parameter(Mandatory = $true)][string]$AuditRoot
 )
@@ -7,6 +8,7 @@ param(
 $ErrorActionPreference = "Stop"
 $dotnet = if ($env:DOTNET_EXE) { $env:DOTNET_EXE } else { "dotnet" }
 $packagePath = (Resolve-Path -LiteralPath $Package).Path
+$releaseManifestPath = (Resolve-Path -LiteralPath $ReleaseManifest).Path
 $auditPath = [IO.Path]::GetFullPath($AuditRoot)
 if (Test-Path -LiteralPath $auditPath) {
     throw "AuditRoot must not already exist: $auditPath"
@@ -19,10 +21,13 @@ $actualArchiveHash = (Get-FileHash -LiteralPath $packagePath -Algorithm SHA256).
 if ($actualArchiveHash -ne $ExpectedSha256.ToLowerInvariant()) {
     throw "Archive SHA-256 mismatch."
 }
-$manifest = Get-Content -LiteralPath (Join-Path $install "RELEASE_MANIFEST.json") -Raw | ConvertFrom-Json
-if ($manifest.sha256 -ne $actualArchiveHash -or $manifest.version -ne "v0.2.0-alpha") {
+$release = Get-Content -LiteralPath $releaseManifestPath -Raw | ConvertFrom-Json
+$manifest = Get-Content -LiteralPath (Join-Path $install "PACKAGE_MANIFEST.json") -Raw | ConvertFrom-Json
+if ($release.sha256 -ne $actualArchiveHash -or $release.version -ne "v0.2.0-alpha") {
     throw "Release manifest identity mismatch."
 }
+if ($manifest.version -ne $release.version -or $manifest.release_commit -ne $release.release_commit -or
+    $manifest.production_ready -ne $false) { throw "Package and release manifest mismatch." }
 
 $hashFailures = @()
 $sumLines = Get-Content -LiteralPath (Join-Path $install "SHA256SUMS")
