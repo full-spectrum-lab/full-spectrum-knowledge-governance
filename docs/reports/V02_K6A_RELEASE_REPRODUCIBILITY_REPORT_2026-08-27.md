@@ -1,7 +1,9 @@
 # Knowledge Governance v0.2.0-alpha K6-A 发布可复现性报告
 
-日期：2026-08-27（北京时间）  
-对象：Windows x64 framework-dependent release candidate  
+日期：2026-08-27（北京时间）
+
+对象：Windows x64 framework-dependent release candidate
+
 目标提交：`42733a87745e5c60eddf0eb48ffe33545805805b`
 
 ```text
@@ -74,7 +76,8 @@ run-b = 730fc42865f5c50e1dfd4021178e2f144621d39a52926b145bf465b34d475a1c
 byte_reproducible = true
 ```
 
-证据：`C:\obs-verify-evidence-hbg\kg-v02-repro-deterministic-20260827\reproducibility.json`  
+证据：`C:\obs-verify-evidence-hbg\kg-v02-repro-deterministic-20260827\reproducibility.json`
+
 SHA-256：`df7ed587572c79d624a7e56d953e2b50020b109729a8a28002863d5b899d2ea0`
 
 ## 4. 失败记录与修复链
