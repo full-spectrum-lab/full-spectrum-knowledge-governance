@@ -1,7 +1,9 @@
 # K2 Controlled Knowledge Sources and Snapshots proposal
 
-Status: `DRAFT / NOT IMPLEMENTED / NOT A REQUIREMENT CHANGE`  
-Date: 2026-08-27  
+Status: `DRAFT / NOT IMPLEMENTED / NOT A REQUIREMENT CHANGE`
+
+Date: 2026-08-27
+
 Authority: `docs/adr/ADR-010-controlled-knowledge-sources-and-snapshots.md`
 
 This document is an implementation-preparation proposal for the Owner-approved

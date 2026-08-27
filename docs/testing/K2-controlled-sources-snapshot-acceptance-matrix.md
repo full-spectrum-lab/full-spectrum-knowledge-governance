@@ -1,7 +1,9 @@
 # K2 controlled sources and snapshots acceptance matrix
 
-Status: `DRAFT / NOT EXECUTED / NOT A RELEASE GATE`  
-Authority: `docs/adr/ADR-010-controlled-knowledge-sources-and-snapshots.md`  
+Status: `DRAFT / NOT EXECUTED / NOT A RELEASE GATE`
+
+Authority: `docs/adr/ADR-010-controlled-knowledge-sources-and-snapshots.md`
+
 Scope: future K2 planning only; v0.2.0-alpha is excluded
 
 | ID | Future check | Required evidence | Current status |
