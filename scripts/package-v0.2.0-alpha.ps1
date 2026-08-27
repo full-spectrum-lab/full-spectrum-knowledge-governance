@@ -13,6 +13,9 @@ $commit = (& git -C $root rev-parse HEAD).Trim()
 if ($LASTEXITCODE -ne 0 -or $commit -notmatch '^[0-9a-f]{40}$') {
     throw "A clean Git commit identity is required."
 }
+$commitTimestamp = (& git -C $root show -s --format=%cI $commit).Trim()
+if ($LASTEXITCODE -ne 0) { throw "The Git commit timestamp could not be read." }
+$fixedTimestamp = [DateTimeOffset]::Parse($commitTimestamp).UtcDateTime
 if (git -C $root status --porcelain) {
     throw "Release packaging requires a clean worktree. Commit the release inputs first."
 }
@@ -90,7 +93,7 @@ try {
         name = "full-spectrum-knowledge-governance-v0.2.0-alpha-win-x64"
         documentNamespace = "https://gitee.com/full-spectrum/full-spectrum-knowledge-governance/sbom/v0.2.0-alpha/win-x64"
         creationInfo = @{
-            created = [DateTime]::UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
+            created = $fixedTimestamp.ToString("yyyy-MM-ddTHH:mm:ssZ")
             creators = @("Organization: Full Spectrum Lab", "Tool: package-v0.2.0-alpha.ps1")
         }
         packages = @(@{
@@ -117,6 +120,11 @@ try {
         $relative = $_.FullName.Substring($stage.Length).TrimStart('\').Replace('\','/')
         "{0}  ./{1}" -f (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(), $relative
     } | Set-Content -Encoding ascii (Join-Path $stage "SHA256SUMS")
+
+    # ZIP metadata is normalized to the release commit time so repeated packaging
+    # of the same clean commit can be checked for byte-for-byte reproducibility.
+    Get-ChildItem -LiteralPath $stage -Recurse | ForEach-Object { $_.LastWriteTimeUtc = $fixedTimestamp }
+    (Get-Item -LiteralPath $stage).LastWriteTimeUtc = $fixedTimestamp
 
     $archive = Join-Path $output "full-spectrum-knowledge-governance-v0.2.0-alpha-win-x64.zip"
     Compress-Archive -Path "$stage/*" -DestinationPath $archive -CompressionLevel Optimal
