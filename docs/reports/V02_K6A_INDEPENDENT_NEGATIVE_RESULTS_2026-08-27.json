@@ -1,0 +1,45 @@
+{
+  "contract": "workbuddy/kg-v02-k6a-independent-negative-results/1",
+  "date": "2026-08-27",
+  "candidate": {
+    "archive_sha256": "730fc42865f5c50e1dfd4021178e2f144621d39a52926b145bf465b34d475a1c",
+    "release_commit": "42733a87745e5c60eddf0eb48ffe33545805805b",
+    "version": "v0.2.0-alpha"
+  },
+  "negative_results": [
+    {
+      "id": "wrong_expected_archive_hash",
+      "result": "REJECTED",
+      "evidence": "verify-package-v0.2.0-alpha.ps1 rejected an all-zero expected SHA-256."
+    },
+    {
+      "id": "tampered_file",
+      "result": "REJECTED",
+      "target": "README.md in a temporary extracted-copy",
+      "evidence": "Actual SHA-256 no longer matched the package SHA256SUMS entry."
+    },
+    {
+      "id": "checksum_path_escape",
+      "result": "REJECTED",
+      "target": "./../escaped.txt",
+      "evidence": "Canonical target falls outside extraction root and fails the verifier containment predicate."
+    },
+    {
+      "id": "missing_runtimeconfig",
+      "result": "REJECTED",
+      "target": "bin/FullSpectrum.Knowledge.TestHost.runtimeconfig.json in a temporary extracted-copy",
+      "evidence": "The SHA256SUMS-listed required file was absent."
+    },
+    {
+      "id": "missing_dotnet_runtime",
+      "result": "REJECTED",
+      "target": "Temporary empty DOTNET_ROOT",
+      "exit_code": -2147450749,
+      "evidence": "Framework-dependent AppHost reported: You must install .NET to run this application."
+    }
+  ],
+  "standard_json_schema_validator": "NOT_EXECUTED",
+  "kg6_release_pass": "PASS",
+  "kg6_production_ready": "NO",
+  "original_workbuddy_sha256": "fc2f81514756e911cea5ea98430cc04af2a7de378d36a5df114b1848268ae023"
+}
