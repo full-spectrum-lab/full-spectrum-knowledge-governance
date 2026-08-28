@@ -20,7 +20,16 @@ if (git -C $root status --porcelain) {
     throw "Release packaging requires a clean worktree. Commit the release inputs first."
 }
 
-$version = "v0.2.0-alpha"
+$parameterizedRelease = [bool]$env:FSKG_PACKAGE_VERSION
+$releaseVersion = if ($parameterizedRelease) {
+    $env:FSKG_PACKAGE_VERSION.TrimStart('v')
+} else {
+    "0.2.0-alpha"
+}
+if ($releaseVersion -notmatch '^[0-9]+\.[0-9]+\.[0-9]+-[0-9A-Za-z.-]+$') {
+    throw "Invalid release version: $releaseVersion"
+}
+$version = "v$releaseVersion"
 $output = Join-Path $root "artifacts/release/$version"
 $stage = Join-Path $output "package"
 if (Test-Path -LiteralPath $output) { Remove-Item -LiteralPath $output -Recurse -Force }
@@ -28,16 +37,18 @@ New-Item -ItemType Directory -Path $stage | Out-Null
 
 Push-Location $root
 try {
-    & $dotnet restore FullSpectrum.Knowledge.slnx --locked-mode
+    $common = @(
+        "-p:Version=$releaseVersion",
+        "-p:PackageVersion=$releaseVersion",
+        "-p:AssemblyVersion=$($releaseVersion.Split('-')[0]).0",
+        "-p:FileVersion=$($releaseVersion.Split('-')[0]).0",
+        "-p:RepositoryCommit=$commit",
+        "-p:InformationalVersion=$releaseVersion+$commit"
+    )
+
+    & $dotnet restore FullSpectrum.Knowledge.slnx --locked-mode @common
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-    $common = @(
-        "-p:Version=0.2.0-alpha",
-        "-p:AssemblyVersion=0.2.0.0",
-        "-p:FileVersion=0.2.0.0",
-        "-p:RepositoryCommit=$commit",
-        "-p:InformationalVersion=0.2.0-alpha+$commit"
-    )
     & $dotnet publish src/FullSpectrum.Knowledge.TestHost -c Release --no-restore `
         --self-contained false -p:UseAppHost=true @common `
         -o (Join-Path $stage "bin")
@@ -50,6 +61,30 @@ try {
         -o (Join-Path $stage "library")
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+    # Fail closed when NuGet restore or publish metadata drifts from the release
+    # identity. A successful compilation alone is not sufficient evidence.
+    $depsFiles = @(
+        Get-ChildItem -LiteralPath (Join-Path $stage "bin") -Filter "*.deps.json" -File
+        Get-ChildItem -LiteralPath (Join-Path $stage "library") -Filter "*.deps.json" -File
+    )
+    if ($depsFiles.Count -lt 2) {
+        throw "Expected deps.json files for both CLI and library publish outputs."
+    }
+    foreach ($depsFile in $depsFiles) {
+        $deps = Get-Content -LiteralPath $depsFile.FullName -Raw | ConvertFrom-Json
+        $projectLibraries = @($deps.libraries.PSObject.Properties |
+            Where-Object { $_.Name -like "FullSpectrum.Knowledge.*/*" })
+        if ($projectLibraries.Count -eq 0) {
+            throw "No FullSpectrum.Knowledge project identities found in $($depsFile.Name)."
+        }
+        foreach ($projectLibrary in $projectLibraries) {
+            $actualVersion = $projectLibrary.Name.Split('/', 2)[1]
+            if ($actualVersion -ne $releaseVersion) {
+                throw "Release version drift in $($depsFile.Name): $($projectLibrary.Name), expected */$releaseVersion."
+            }
+        }
+    }
+
     Copy-Item schemas,examples -Destination $stage -Recurse
     Copy-Item LICENSE,LICENSE-APACHE-2.0,LICENSE-MULANPSL-2.0,NOTICE,README.md,README.en.md,FullSpectrum.Knowledge.slnx -Destination $stage
     Copy-Item "docs/release/$version/*" -Destination $stage
@@ -61,6 +96,12 @@ try {
         tag = "NOT_CREATED"
         target = "win-x64"
         package_layout = @{ cli = "bin"; library = "library"; schemas = "schemas"; examples = "examples" }
+        runtime_prerequisites = @{
+            dotnet = "10"
+            windows_system_sqlite = "winsqlite3.dll"
+            preflight = "bin/FullSpectrum.Knowledge.TestHost.exe verify-k0-02"
+        }
+        native_sqlite_external_reverify = "EXTERNAL_REQUIRED"
         production_ready = $false
         standard_json_schema_validator = "NOT_EXECUTED"
     } | ConvertTo-Json -Depth 8 | Set-Content -Encoding utf8 (Join-Path $stage "PACKAGE_MANIFEST.json")
@@ -90,16 +131,16 @@ try {
         spdxVersion = "SPDX-2.3"
         dataLicense = "CC0-1.0"
         SPDXID = "SPDXRef-DOCUMENT"
-        name = "full-spectrum-knowledge-governance-v0.2.0-alpha-win-x64"
-        documentNamespace = "https://gitee.com/full-spectrum/full-spectrum-knowledge-governance/sbom/v0.2.0-alpha/win-x64"
+        name = "full-spectrum-knowledge-governance-$version-win-x64"
+        documentNamespace = "https://gitee.com/full-spectrum/full-spectrum-knowledge-governance/sbom/$version/win-x64"
         creationInfo = @{
             created = $fixedTimestamp.ToString("yyyy-MM-ddTHH:mm:ssZ")
-            creators = @("Organization: Full Spectrum Lab", "Tool: package-v0.2.0-alpha.ps1")
+            creators = @("Organization: Full Spectrum Lab", "Tool: package-$version.ps1")
         }
         packages = @(@{
             name = "full-spectrum-knowledge-governance"
             SPDXID = "SPDXRef-Package"
-            versionInfo = "0.2.0-alpha"
+            versionInfo = $releaseVersion
             downloadLocation = "NOASSERTION"
             filesAnalyzed = $true
             licenseConcluded = "MulanPSL-2.0 OR Apache-2.0"
@@ -126,7 +167,7 @@ try {
     Get-ChildItem -LiteralPath $stage -Recurse | ForEach-Object { $_.LastWriteTimeUtc = $fixedTimestamp }
     (Get-Item -LiteralPath $stage).LastWriteTimeUtc = $fixedTimestamp
 
-    $archive = Join-Path $output "full-spectrum-knowledge-governance-v0.2.0-alpha-win-x64.zip"
+    $archive = Join-Path $output "full-spectrum-knowledge-governance-$version-win-x64.zip"
     Add-Type -AssemblyName System.IO.Compression
     $archiveStream = [IO.File]::Open($archive, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
     $zip = [IO.Compression.ZipArchive]::new($archiveStream, [IO.Compression.ZipArchiveMode]::Create, $false)
@@ -160,6 +201,12 @@ try {
         sha256 = $archiveHash
         target = "win-x64"
         package_layout = @{ cli = "bin"; library = "library"; schemas = "schemas"; examples = "examples" }
+        runtime_prerequisites = @{
+            dotnet = "10"
+            windows_system_sqlite = "winsqlite3.dll"
+            preflight = "bin/FullSpectrum.Knowledge.TestHost.exe verify-k0-02"
+        }
+        native_sqlite_external_reverify = "EXTERNAL_REQUIRED"
         tests = @{ passed = 92; total = 92 }
         schemas = @{ valid = 13; total = 13 }
         golden = "PASS"

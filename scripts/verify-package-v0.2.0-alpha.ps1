@@ -2,7 +2,8 @@ param(
     [Parameter(Mandatory = $true)][string]$Package,
     [Parameter(Mandatory = $true)][string]$ReleaseManifest,
     [Parameter(Mandatory = $true)][string]$ExpectedSha256,
-    [Parameter(Mandatory = $true)][string]$AuditRoot
+    [Parameter(Mandatory = $true)][string]$AuditRoot,
+    [string]$ExpectedVersion = "0.2.0-alpha"
 )
 
 $ErrorActionPreference = "Stop"
@@ -16,7 +17,9 @@ if (Test-Path -LiteralPath $auditPath) {
     throw "AuditRoot must not already exist: $auditPath"
 }
 New-Item -ItemType Directory -Path $auditPath | Out-Null
-$install = Join-Path $auditPath "install-v0.2.0-alpha"
+$expectedVersionTag = "v$($ExpectedVersion.TrimStart('v'))"
+$expectedVersionValue = $ExpectedVersion.TrimStart('v')
+$install = Join-Path $auditPath "install-$expectedVersionTag"
 Expand-Archive -LiteralPath $packagePath -DestinationPath $install
 
 $actualArchiveHash = (Get-FileHash -LiteralPath $packagePath -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -25,11 +28,30 @@ if ($actualArchiveHash -ne $ExpectedSha256.ToLowerInvariant()) {
 }
 $release = Get-Content -LiteralPath $releaseManifestPath -Raw | ConvertFrom-Json
 $manifest = Get-Content -LiteralPath (Join-Path $install "PACKAGE_MANIFEST.json") -Raw | ConvertFrom-Json
-if ($release.sha256 -ne $actualArchiveHash -or $release.version -ne "v0.2.0-alpha") {
+if ($release.sha256 -ne $actualArchiveHash -or $release.version -ne $expectedVersionTag) {
     throw "Release manifest identity mismatch."
 }
 if ($manifest.version -ne $release.version -or $manifest.release_commit -ne $release.release_commit -or
     $manifest.production_ready -ne $false) { throw "Package and release manifest mismatch." }
+if ($expectedVersionValue -ne "0.2.0-alpha") {
+    if ($manifest.runtime_prerequisites.windows_system_sqlite -ne "winsqlite3.dll" -or
+        $manifest.native_sqlite_external_reverify -ne "EXTERNAL_REQUIRED" -or
+        $release.runtime_prerequisites.windows_system_sqlite -ne "winsqlite3.dll" -or
+        $release.native_sqlite_external_reverify -ne "EXTERNAL_REQUIRED") {
+        throw "Candidate runtime prerequisite evidence is incomplete."
+    }
+    $dependencyIdentities = foreach ($depsFile in Get-ChildItem -LiteralPath $install -Filter "*.deps.json" -File -Recurse) {
+        $deps = Get-Content -LiteralPath $depsFile.FullName -Raw | ConvertFrom-Json
+        foreach ($property in $deps.libraries.PSObject.Properties |
+            Where-Object { $_.Name -like "FullSpectrum.Knowledge.*/*" }) {
+            $property.Name
+        }
+    }
+    if (@($dependencyIdentities).Count -eq 0 -or
+        @($dependencyIdentities | Where-Object { -not $_.EndsWith("/$expectedVersionValue") }).Count -ne 0) {
+        throw "Packaged dependency identity does not match $expectedVersionValue."
+    }
+}
 
 $hashFailures = @()
 $sumLines = Get-Content -LiteralPath (Join-Path $install "SHA256SUMS")
@@ -61,11 +83,15 @@ Push-Location $install
 try {
     $versionOutput = & $cli version 2>&1
     if ($LASTEXITCODE -ne 0) { throw "Package version command failed." }
+    $sqliteOutput = & $cli verify-k0-02 2>&1
+    if ($LASTEXITCODE -ne 0 -or ($sqliteOutput -join "`n") -notmatch '"native_sqlite"\s*:\s*"winsqlite3"') {
+        throw "Package SQLite preflight failed."
+    }
     $goldenOutput = & $cli verify-k0-05 2>&1
     if ($LASTEXITCODE -ne 0) { throw "Package K0-05 Golden verification failed." }
 }
 finally { Pop-Location }
-if (($versionOutput -join "`n") -notmatch [regex]::Escape("VERSION=0.2.0-alpha+$($manifest.release_commit)")) {
+if (($versionOutput -join "`n") -notmatch [regex]::Escape("VERSION=$expectedVersionValue+$($manifest.release_commit)")) {
     throw "Embedded version does not match the manifest commit."
 }
 
@@ -175,6 +201,7 @@ $result = [ordered]@{
     package_file_count = $sumLines.Count
     package_hash_failures = @($hashFailures)
     version_output = @($versionOutput)
+    sqlite_output = @($sqliteOutput)
     golden_output = @($goldenOutput)
     consumer_output = @($consumerOutput)
     removal = "PASS"
