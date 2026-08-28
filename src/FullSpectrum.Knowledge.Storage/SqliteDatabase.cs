@@ -129,15 +129,23 @@ internal sealed class SqliteDatabase : IDisposable
 
     public void Dispose()
     {
-        if (handle == IntPtr.Zero) return;
-        NativeSqlite.sqlite3_close_v2(handle);
-        handle = IntPtr.Zero;
+        lock (gate)
+        {
+            if (handle == IntPtr.Zero) return;
+            NativeSqlite.sqlite3_close_v2(handle);
+            handle = IntPtr.Zero;
+        }
     }
 
     private sealed class SqliteStatement(IntPtr handle) : IDisposable
     {
-        internal IntPtr Handle { get; } = handle;
-        public void Dispose() => NativeSqlite.sqlite3_finalize(Handle);
+        private IntPtr statementHandle = handle;
+        internal IntPtr Handle => statementHandle;
+        public void Dispose()
+        {
+            var statement = Interlocked.Exchange(ref statementHandle, IntPtr.Zero);
+            if (statement != IntPtr.Zero) NativeSqlite.sqlite3_finalize(statement);
+        }
     }
 }
 
