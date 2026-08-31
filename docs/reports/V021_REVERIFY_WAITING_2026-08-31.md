@@ -22,10 +22,18 @@ V021_PRODUCTION_READY = NO
   created emergency handoff document.
 - The candidate ZIP exists at:
   `artifacts/release/v0.2.1-alpha/full-spectrum-knowledge-governance-v0.2.1-alpha-win-x64.zip`
+- The current candidate SHA-256 is
+  `78a6210f33bb71ad8e31392fa72691a731ddc08bfaac32077819519e604559f5`.
+- `RELEASE_MANIFEST.json` identifies the current candidate as release commit
+  `2517afc7ca315ec0d02f9f52bdbe3f39bc7f0a50`, matching the current repository
+  HEAD.
 - The expected WorkBuddy directory
   `C:\Users\wangjian0926\WorkBuddy\2026-08-28` was not present at check time.
 - No matching `kg-v021-independent-package-reverification.md` or `.json` report
   was found during the bounded WorkBuddy search.
+- A local package verifier rerun reached the generated Library consumer, then
+  stopped because `global.json` requires .NET SDK `10.0.301` with
+  `rollForward=disable`, while the current machine exposes only SDK `10.0.400`.
 
 ## Interpretation
 
@@ -37,6 +45,11 @@ candidate remains in its previously recorded state:
 The absence of a WorkBuddy report cannot be converted to PASS, FAIL, or
 NOT_REPRODUCED. The second-host Windows SQLite run remains an external,
 non-blocking evidence task.
+
+The SDK mismatch is recorded as `LOCAL_ENVIRONMENT_BLOCKED`, not as a package
+failure. Re-run the verifier after installing or selecting the exact SDK
+declared by `global.json`; do not relax the repository pin merely to obtain a
+passing result.
 
 ## Next action
 
