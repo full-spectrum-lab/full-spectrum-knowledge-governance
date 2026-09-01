@@ -35,6 +35,7 @@ internal static class Program
         ("Released artifact remains readable after revoke", RevokedArtifactReadable),
         ("Audit records every governance transition", AuditCompleteness),
         ("Replay reconstructs historical state", ReplayHistoricalState),
+        ("Native SQLite survives repeated open close cycles", NativeSqliteOpenCloseStress),
         ("Registry keeps exact versions independent", ExactVersionsIndependent),
         ("Registry reports missing identity", MissingIdentity),
         ("Audit event conforms to its schema", AuditEventSchema),
@@ -313,6 +314,24 @@ internal static class Program
         var replay = fixture.Registry.Replay(fixture.Id, fixture.Version, sequence);
         Equal(KnowledgeLifecycleState.ReviewRequired, replay.State);
         Equal(2, replay.Events.Count);
+    }
+
+    private static void NativeSqliteOpenCloseStress()
+    {
+        for (var cycle = 0; cycle < 100; cycle++)
+        {
+            using var fixture = new RegistryFixture();
+            fixture.Register();
+            fixture.Registry.SubmitReview(
+                fixture.Id, fixture.Version, "reviewer", fixture.At.AddMinutes(1));
+            fixture.Registry.Release(
+                fixture.Id, fixture.Version, "publisher", fixture.At.AddMinutes(2));
+            fixture.Restart();
+            Equal(
+                KnowledgeLifecycleState.Released,
+                fixture.Registry.Get(fixture.Id, fixture.Version).State);
+            Equal(3, fixture.Registry.Audit(fixture.Id, fixture.Version).Count);
+        }
     }
 
     private static void ExactVersionsIndependent()
