@@ -145,9 +145,27 @@ public sealed class ControlledSourceRegistry : IDisposable
         return payload is null ? null : JsonSerializer.Deserialize<DynamicKnowledgeSnapshot>(payload, KnowledgeJson.Options);
     }
 
-    public IReadOnlyList<string> ReadAudit(string sourceId, KnowledgeVersion sourceVersion) => database.Query(
-        "SELECT payload FROM kg_source_audit WHERE source_id = ? AND source_version = ? ORDER BY sequence",
-        row => row.Text(0), sourceId, sourceVersion.Value);
+    public IReadOnlyList<KnowledgeSourceAuditEvent> ReadAudit(string sourceId, KnowledgeVersion sourceVersion) => database.Query(
+        "SELECT sequence, event_type, payload FROM kg_source_audit WHERE source_id = ? AND source_version = ? ORDER BY sequence",
+        row => new KnowledgeSourceAuditEvent(row.Int64(0), sourceId, sourceVersion, row.Text(1), row.Text(2)), sourceId, sourceVersion.Value);
+
+    public KnowledgeSourceRegistration ReplaySource(string sourceId, KnowledgeVersion sourceVersion)
+    {
+        var events = ReadAudit(sourceId, sourceVersion);
+        var registered = events.FirstOrDefault(e => e.EventType == "REGISTERED")
+            ?? throw new InvalidOperationException("Source audit sequence has no registration event.");
+        var current = JsonSerializer.Deserialize<KnowledgeSourceRegistration>(registered.Payload, KnowledgeJson.Options)
+            ?? throw new InvalidOperationException("Registration audit payload is invalid.");
+        foreach (var audit in events.Where(e => e.EventType.StartsWith("STATE_", StringComparison.Ordinal)))
+        {
+            var stateName = audit.EventType["STATE_".Length..];
+            if (!Enum.TryParse<KnowledgeSourceLifecycleState>(stateName, true, out var target))
+                throw new InvalidOperationException("Unknown source lifecycle audit event.");
+            ControlledSourceValidator.ValidateSourceTransition(current.State, target);
+            current = current with { State = target };
+        }
+        return current;
+    }
 
     private void AppendAudit(KnowledgeSourceRegistration registration, string eventType, string payload) => database.Execute(
         "INSERT INTO kg_source_audit(source_id, source_version, event_type, payload) VALUES (?, ?, ?, ?)",

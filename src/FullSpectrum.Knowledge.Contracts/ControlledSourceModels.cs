@@ -81,3 +81,10 @@ public sealed record DynamicKnowledgeSnapshot(
     string? ParentSnapshotId,
     string? ChangeRelationship,
     DigestRef SnapshotDigest);
+
+public sealed record KnowledgeSourceAuditEvent(
+    long Sequence,
+    string SourceId,
+    KnowledgeVersion SourceVersion,
+    string EventType,
+    string Payload);

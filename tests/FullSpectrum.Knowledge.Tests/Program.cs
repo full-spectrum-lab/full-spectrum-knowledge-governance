@@ -112,6 +112,7 @@ internal static class Program
         ("K2 snapshot survives restart", K2SnapshotRestart),
         ("K2 snapshot is immutable", K2SnapshotImmutable),
         ("K2 source lifecycle and audit replay", K2LifecycleAudit)
+        ,("K2 schemas are strict and versioned", K2SchemasStrict)
     ];
 
     private static int Main()
@@ -1393,9 +1394,24 @@ internal static class Program
             registry.TransitionSource("SRC-001", new KnowledgeVersion("1.0.0"), KnowledgeSourceLifecycleState.Active, "owner", DateTimeOffset.UnixEpoch);
             registry.TransitionSource("SRC-001", new KnowledgeVersion("1.0.0"), KnowledgeSourceLifecycleState.Revoked, "owner", DateTimeOffset.UnixEpoch);
             True(registry.ReadAudit("SRC-001", new KnowledgeVersion("1.0.0")).Count == 4);
+            Equal(KnowledgeSourceLifecycleState.Revoked, registry.ReplaySource("SRC-001", new KnowledgeVersion("1.0.0")).State);
             Throws<InvalidOperationException>(() => registry.TransitionSource("SRC-001", new KnowledgeVersion("1.0.0"), KnowledgeSourceLifecycleState.Active, "owner", DateTimeOffset.UnixEpoch));
         }
         finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+    }
+
+    private static void K2SchemasStrict()
+    {
+        var directory = Path.Combine(Root(), "schemas", "knowledge", "v2.0");
+        var files = Directory.GetFiles(directory, "*.schema.json");
+        Equal(3, files.Length);
+        foreach (var file in files)
+        {
+            using var document = JsonDocument.Parse(File.ReadAllText(file));
+            Equal("https://json-schema.org/draft/2020-12/schema", document.RootElement.GetProperty("$schema").GetString());
+            Equal(JsonValueKind.False, document.RootElement.GetProperty("additionalProperties").ValueKind);
+            True(document.RootElement.GetProperty("required").GetArrayLength() > 0);
+        }
     }
 
     private static DynamicKnowledgeSnapshot K2Snapshot(string id) => new(
