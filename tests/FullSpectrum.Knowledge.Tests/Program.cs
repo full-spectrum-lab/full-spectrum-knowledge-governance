@@ -103,7 +103,10 @@ internal static class Program
         ("Release-state conflict resolves by authority", ReleaseStateConflictResolution),
         ("Release manifest conforms to its schema", ReleaseManifestSchema),
         ("Library API reopens v0.1 storage and resolves fixed knowledge", LibraryApiCompatibility),
-        ("Reference Adapter SPI round-trips public contracts", ReferenceAdapterRoundTrip)
+        ("Reference Adapter SPI round-trips public contracts", ReferenceAdapterRoundTrip),
+        ("K2 source registration validates required evidence", K2RegistrationValidation),
+        ("K2 retrieval requires an active matching source", K2RetrievalBoundary),
+        ("K2 partial retrieval preserves UNKNOWN evidence", K2PartialRequiresEvidence)
     ];
 
     private static int Main()
@@ -1293,6 +1296,42 @@ internal static class Program
             if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
         }
     }
+
+    private static void K2RegistrationValidation()
+    {
+        var registration = K2Registration();
+        ControlledSourceValidator.ValidateRegistration(registration);
+        Throws<ArgumentException>(() => ControlledSourceValidator.ValidateRegistration(
+            registration with { TermsReference = "" }));
+    }
+
+    private static void K2RetrievalBoundary()
+    {
+        var registration = K2Registration();
+        var retrieval = new KnowledgeSourceRetrieval(
+            "RET-001", "SRC-001", new KnowledgeVersion("1.0.0"), "adapter", "1.0.0",
+            DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch, "req-1", 200, "san-1", "norm-1",
+            KnowledgeRetrievalOutcome.Completed, ["item-1"], [], [], [], null,
+            DigestRef.Sha256("retrieval"));
+        ControlledSourceValidator.ValidateRetrieval(registration, retrieval);
+        Throws<InvalidOperationException>(() => ControlledSourceValidator.ValidateRetrieval(
+            registration with { State = KnowledgeSourceLifecycleState.Revoked }, retrieval));
+    }
+
+    private static void K2PartialRequiresEvidence()
+    {
+        var registration = K2Registration();
+        var retrieval = new KnowledgeSourceRetrieval(
+            "RET-002", "SRC-001", new KnowledgeVersion("1.0.0"), "adapter", "1.0.0",
+            DateTimeOffset.UnixEpoch, null, "req-2", null, "san-1", "norm-1",
+            KnowledgeRetrievalOutcome.Partial, [], [], [], [], null, DigestRef.Sha256("partial"));
+        Throws<InvalidOperationException>(() => ControlledSourceValidator.ValidateRetrieval(registration, retrieval));
+    }
+
+    private static KnowledgeSourceRegistration K2Registration() => new(
+        "SRC-001", new KnowledgeVersion("1.0.0"), "synthetic-publisher", KnowledgeSourceKind.Manual,
+        "terms://synthetic", "policy://synthetic", "adapter", "1.0.0", ["example.invalid"],
+        KnowledgeSourceLifecycleState.Active, DateTimeOffset.UnixEpoch, DigestRef.Sha256("registration"));
 
     private static IReadOnlyList<string> ValidateFixture() => Validate(File.ReadAllText(FixturePath()));
 
