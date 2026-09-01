@@ -1,0 +1,8 @@
+{
+  "case_id": "KG-GC-K2-CONTROLLED-SOURCE-001",
+  "status": "DESIGNED_TEST_BASELINE_NOT_RELEASED",
+  "source": {"source_id":"SRC-SYNTHETIC-001","source_version":"1.0.0","state":"ACTIVE","kind":"MANUAL","terms_reference":"terms://synthetic","access_policy_reference":"policy://synthetic","adapter_id":"offline-fixture","adapter_version":"1.0.0"},
+  "retrieval": {"retrieval_id":"RET-SYNTHETIC-001","request_identity":"REQ-SYNTHETIC-001","outcome":"COMPLETED"},
+  "snapshot": {"snapshot_id":"SNAP-SYNTHETIC-001","retrieval_id":"RET-SYNTHETIC-001","selected_item_ids":["item-1"],"unknowns":[]},
+  "required_negative_cases":["revoked_source_retrieval","conflicting_retry","snapshot_without_retrieval","snapshot_overwrite","implicit_fixed_promotion"]
+}

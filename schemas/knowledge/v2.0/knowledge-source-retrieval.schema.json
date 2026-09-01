@@ -1,0 +1,8 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://full-spectrum.dev/schemas/knowledge/v2.0/knowledge-source-retrieval.schema.json",
+  "type":"object","additionalProperties":false,
+  "required":["retrieval_id","source_id","source_version","adapter_id","adapter_version","requested_at_utc","request_identity","sanitization_policy_version","sanitization_digest","normalization_policy_version","normalization_digest","outcome","canonical_item_ids","excluded_item_ids","unresolved_item_ids","unknowns","retrieval_digest"],
+  "properties":{"retrieval_id":{"type":"string","minLength":1},"source_id":{"type":"string","minLength":1},"source_version":{"type":"string"},"adapter_id":{"type":"string"},"adapter_version":{"type":"string"},"requested_at_utc":{"type":"string","format":"date-time"},"completed_at_utc":{"type":["string","null"]},"request_identity":{"type":"string","minLength":1},"response_status":{"type":["integer","null"]},"sanitization_policy_version":{"type":"string"},"sanitization_digest":{"$ref":"#/$defs/digest"},"normalization_policy_version":{"type":"string"},"normalization_digest":{"$ref":"#/$defs/digest"},"outcome":{"enum":["COMPLETED","PARTIAL","FAILED","UNKNOWN"]},"canonical_item_ids":{"type":"array","items":{"type":"string"}},"excluded_item_ids":{"type":"array","items":{"type":"string"}},"unresolved_item_ids":{"type":"array","items":{"type":"string"}},"unknowns":{"type":"array","items":{"type":"string"}},"error_code":{"type":["string","null"]},"retrieval_digest":{"$ref":"#/$defs/digest"}},
+  "$defs":{"digest":{"type":"object","additionalProperties":false,"required":["algorithm","value"],"properties":{"algorithm":{"const":"SHA-256"},"value":{"type":"string","pattern":"^[0-9a-f]{64}$"}}}}
+}
