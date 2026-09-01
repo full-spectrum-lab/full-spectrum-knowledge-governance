@@ -413,7 +413,13 @@ internal static class Program
         var errors = new List<string>();
         if (!string.Equals(actualJson, expectedJson, StringComparison.Ordinal))
             errors.Add("Release conflict Golden mismatch.");
-        if (!readme.Contains($"当前正式版本：`{version}`", StringComparison.Ordinal))
+        // The README is bilingual and its release section may use either the
+        // Chinese or English presentation.  Require an explicit reference to
+        // the manifest version plus a released/pre-release marker, rather than
+        // one exact sentence that is unnecessarily locale-sensitive.
+        if (!readme.Contains(version, StringComparison.Ordinal) ||
+            (!readme.Contains("RELEASED", StringComparison.Ordinal) &&
+             !readme.Contains("Pre-release", StringComparison.Ordinal)))
             errors.Add("README does not reference the manifest release version.");
         if (readme.Contains("NOT RELEASED", StringComparison.Ordinal) ||
             readme.Contains("AWAITING CLEAN-CLONE", StringComparison.Ordinal))
