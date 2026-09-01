@@ -106,7 +106,9 @@ internal static class Program
         ("Reference Adapter SPI round-trips public contracts", ReferenceAdapterRoundTrip),
         ("K2 source registration validates required evidence", K2RegistrationValidation),
         ("K2 retrieval requires an active matching source", K2RetrievalBoundary),
-        ("K2 partial retrieval preserves UNKNOWN evidence", K2PartialRequiresEvidence)
+        ("K2 partial retrieval preserves UNKNOWN evidence", K2PartialRequiresEvidence),
+        ("K2 registry survives restart", K2RegistryRestart),
+        ("K2 registry rejects conflicting retries", K2RegistryRetryConflict)
     ];
 
     private static int Main()
@@ -1332,6 +1334,48 @@ internal static class Program
         "SRC-001", new KnowledgeVersion("1.0.0"), "synthetic-publisher", KnowledgeSourceKind.Manual,
         "terms://synthetic", "policy://synthetic", "adapter", "1.0.0", ["example.invalid"],
         KnowledgeSourceLifecycleState.Active, DateTimeOffset.UnixEpoch, DigestRef.Sha256("registration"));
+
+    private static void K2RegistryRestart()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"fskg-k2-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            var registration = K2Registration();
+            var retrieval = K2Retrieval("RET-RESTART", "req-restart");
+            using (var registry = new ControlledSourceRegistry(Path.Combine(root, "metadata.sqlite3")))
+            {
+                registry.Register(registration);
+                registry.RecordRetrieval(retrieval);
+            }
+            using var reopened = new ControlledSourceRegistry(Path.Combine(root, "metadata.sqlite3"));
+            Equal(DeterministicJson.Canonicalize(JsonSerializer.Serialize(registration, KnowledgeJson.Options)),
+                DeterministicJson.Canonicalize(JsonSerializer.Serialize(reopened.Get("SRC-001", new KnowledgeVersion("1.0.0")), KnowledgeJson.Options)));
+            Equal(DeterministicJson.Canonicalize(JsonSerializer.Serialize(retrieval, KnowledgeJson.Options)),
+                DeterministicJson.Canonicalize(JsonSerializer.Serialize(reopened.GetRetrieval("RET-RESTART"), KnowledgeJson.Options)));
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+    }
+
+    private static void K2RegistryRetryConflict()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"fskg-k2-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            using var registry = new ControlledSourceRegistry(Path.Combine(root, "metadata.sqlite3"));
+            registry.Register(K2Registration());
+            registry.RecordRetrieval(K2Retrieval("RET-CONFLICT", "req-a"));
+            Throws<InvalidOperationException>(() => registry.RecordRetrieval(K2Retrieval("RET-CONFLICT", "req-b")));
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+    }
+
+    private static KnowledgeSourceRetrieval K2Retrieval(string id, string request) => new(
+        id, "SRC-001", new KnowledgeVersion("1.0.0"), "adapter", "1.0.0",
+        DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch, request, 200, "san-1", DigestRef.Sha256("san"),
+        "norm-1", DigestRef.Sha256("norm"), KnowledgeRetrievalOutcome.Completed,
+        ["item-1"], [], [], [], null, DigestRef.Sha256("retrieval"));
 
     private static IReadOnlyList<string> ValidateFixture() => Validate(File.ReadAllText(FixturePath()));
 

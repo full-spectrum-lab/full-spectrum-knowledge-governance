@@ -6,5 +6,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../FullSpectrum.Knowledge.Contracts/FullSpectrum.Knowledge.Contracts.csproj" />
+    <ProjectReference Include="../FullSpectrum.Knowledge.Domain/FullSpectrum.Knowledge.Domain.csproj" />
   </ItemGroup>
 </Project>
