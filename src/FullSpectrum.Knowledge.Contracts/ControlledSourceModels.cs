@@ -87,4 +87,6 @@ public sealed record KnowledgeSourceAuditEvent(
     string SourceId,
     KnowledgeVersion SourceVersion,
     string EventType,
-    string Payload);
+    string Payload,
+    string PreviousDigest,
+    string EventDigest);

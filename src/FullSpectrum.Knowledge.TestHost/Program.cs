@@ -103,7 +103,8 @@ internal static class Program
             var snapshot = new DynamicKnowledgeSnapshot(
                 "SNAP-VERIFY-K2", registration.SourceId, registration.SourceVersion, registration.AdapterId, registration.AdapterVersion,
                 DateTimeOffset.UnixEpoch, [DigestRef.Sha256("artifact").Value], ["item-1"], [], [], [], "fixed-fixture", "publisher",
-                retrieval.RetrievalId, retrieval.SanitizationDigest, retrieval.NormalizationDigest, null, null, DigestRef.Sha256("snapshot"));
+                retrieval.RetrievalId, retrieval.SanitizationDigest, retrieval.NormalizationDigest, null, null, DigestRef.Sha256(new string('0', 64)));
+            snapshot = snapshot with { SnapshotDigest = ControlledSourceValidator.ComputeSnapshotDigest(snapshot) };
             registry.SaveSnapshot(snapshot);
             var replay = registry.ReplaySource(registration.SourceId, registration.SourceVersion);
             var auditCount = registry.ReadAudit(registration.SourceId, registration.SourceVersion).Count;

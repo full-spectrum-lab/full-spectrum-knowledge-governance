@@ -39,7 +39,9 @@ public sealed class ControlledSourceRegistry : IDisposable
                 source_id TEXT NOT NULL,
                 source_version TEXT NOT NULL,
                 event_type TEXT NOT NULL,
-                payload TEXT NOT NULL
+                payload TEXT NOT NULL,
+                previous_digest TEXT NOT NULL,
+                event_digest TEXT NOT NULL
             );
             """);
     }
@@ -124,6 +126,9 @@ public sealed class ControlledSourceRegistry : IDisposable
         if (!string.Equals(retrieval.SourceId, snapshot.SourceId, StringComparison.Ordinal) ||
             retrieval.SourceVersion != snapshot.SourceVersion)
             throw new InvalidOperationException("Snapshot retrieval identity does not match source.");
+        if (!string.Equals(retrieval.SanitizationDigest.Value, snapshot.SanitizationDigest.Value, StringComparison.Ordinal) ||
+            !string.Equals(retrieval.NormalizationDigest.Value, snapshot.NormalizationDigest.Value, StringComparison.Ordinal))
+            throw new InvalidOperationException("Snapshot policy digests do not match the bound retrieval.");
         if (retrieval.Outcome == KnowledgeRetrievalOutcome.Failed || retrieval.Outcome == KnowledgeRetrievalOutcome.Unknown)
             throw new InvalidOperationException("Failed or UNKNOWN retrievals cannot produce a snapshot.");
         ControlledSourceValidator.ValidateSnapshot(registration, snapshot);
@@ -146,8 +151,8 @@ public sealed class ControlledSourceRegistry : IDisposable
     }
 
     public IReadOnlyList<KnowledgeSourceAuditEvent> ReadAudit(string sourceId, KnowledgeVersion sourceVersion) => database.Query(
-        "SELECT sequence, event_type, payload FROM kg_source_audit WHERE source_id = ? AND source_version = ? ORDER BY sequence",
-        row => new KnowledgeSourceAuditEvent(row.Int64(0), sourceId, sourceVersion, row.Text(1), row.Text(2)), sourceId, sourceVersion.Value);
+        "SELECT sequence, event_type, payload, previous_digest, event_digest FROM kg_source_audit WHERE source_id = ? AND source_version = ? ORDER BY sequence",
+        row => new KnowledgeSourceAuditEvent(row.Int64(0), sourceId, sourceVersion, row.Text(1), row.Text(2), row.Text(3), row.Text(4)), sourceId, sourceVersion.Value);
 
     public KnowledgeSourceRegistration ReplaySource(string sourceId, KnowledgeVersion sourceVersion)
     {
@@ -156,8 +161,15 @@ public sealed class ControlledSourceRegistry : IDisposable
             ?? throw new InvalidOperationException("Source audit sequence has no registration event.");
         var current = JsonSerializer.Deserialize<KnowledgeSourceRegistration>(registered.Payload, KnowledgeJson.Options)
             ?? throw new InvalidOperationException("Registration audit payload is invalid.");
-        foreach (var audit in events.Where(e => e.EventType.StartsWith("STATE_", StringComparison.Ordinal)))
+        var previousDigest = string.Empty;
+        foreach (var audit in events)
         {
+            if (!string.Equals(audit.PreviousDigest, previousDigest, StringComparison.Ordinal) ||
+                !string.Equals(audit.EventDigest, EventDigest(audit.SourceId, audit.EventType, audit.Payload, audit.PreviousDigest), StringComparison.Ordinal))
+                throw new InvalidOperationException("Source audit chain integrity check failed.");
+            previousDigest = audit.EventDigest;
+            if (audit.EventType == "REGISTERED") continue;
+            if (!audit.EventType.StartsWith("STATE_", StringComparison.Ordinal)) continue;
             var stateName = audit.EventType["STATE_".Length..];
             if (!Enum.TryParse<KnowledgeSourceLifecycleState>(stateName, true, out var target))
                 throw new InvalidOperationException("Unknown source lifecycle audit event.");
@@ -167,9 +179,16 @@ public sealed class ControlledSourceRegistry : IDisposable
         return current;
     }
 
-    private void AppendAudit(KnowledgeSourceRegistration registration, string eventType, string payload) => database.Execute(
-        "INSERT INTO kg_source_audit(source_id, source_version, event_type, payload) VALUES (?, ?, ?, ?)",
-        registration.SourceId, registration.SourceVersion.Value, eventType, payload);
+    private void AppendAudit(KnowledgeSourceRegistration registration, string eventType, string payload)
+    {
+        var previous = database.Query("SELECT event_digest FROM kg_source_audit WHERE source_id = ? AND source_version = ? ORDER BY sequence DESC LIMIT 1", row => row.Text(0), registration.SourceId, registration.SourceVersion.Value).SingleOrDefault() ?? string.Empty;
+        var digest = EventDigest(registration.SourceId, eventType, payload, previous);
+        database.Execute("INSERT INTO kg_source_audit(source_id, source_version, event_type, payload, previous_digest, event_digest) VALUES (?, ?, ?, ?, ?, ?)",
+            registration.SourceId, registration.SourceVersion.Value, eventType, payload, previous, digest);
+    }
+
+    private static string EventDigest(string sourceId, string eventType, string payload, string previous) =>
+        DeterministicJson.ComputeSha256(new { source_id = sourceId, event_type = eventType, previous_digest = previous, payload }).Value;
 
     private static string Serialize<T>(T value) =>
         DeterministicJson.Canonicalize(JsonSerializer.Serialize(value, KnowledgeJson.Options));
