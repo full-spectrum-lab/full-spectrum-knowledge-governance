@@ -39,6 +39,9 @@ public static class ControlledSourceValidator
         Require(retrieval.RequestIdentity, nameof(retrieval.RequestIdentity));
         Require(retrieval.SanitizationPolicyVersion, nameof(retrieval.SanitizationPolicyVersion));
         Require(retrieval.NormalizationPolicyVersion, nameof(retrieval.NormalizationPolicyVersion));
+        if (!string.Equals(retrieval.SanitizationDigest.Algorithm, "SHA-256", StringComparison.Ordinal) ||
+            !string.Equals(retrieval.NormalizationDigest.Algorithm, "SHA-256", StringComparison.Ordinal))
+            throw new ArgumentException("Retrieval policy digests must use SHA-256.", nameof(retrieval));
         if (retrieval.Outcome is KnowledgeRetrievalOutcome.Partial or KnowledgeRetrievalOutcome.Unknown &&
             retrieval.UnresolvedItemIds.Count == 0 && retrieval.Unknowns.Count == 0)
             throw new InvalidOperationException("Partial or UNKNOWN retrievals must preserve unresolved/UNKNOWN evidence.");

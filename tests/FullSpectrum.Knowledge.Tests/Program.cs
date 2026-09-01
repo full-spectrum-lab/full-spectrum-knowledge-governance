@@ -1310,7 +1310,7 @@ internal static class Program
         var registration = K2Registration();
         var retrieval = new KnowledgeSourceRetrieval(
             "RET-001", "SRC-001", new KnowledgeVersion("1.0.0"), "adapter", "1.0.0",
-            DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch, "req-1", 200, "san-1", "norm-1",
+            DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch, "req-1", 200, "san-1", DigestRef.Sha256("san"), "norm-1", DigestRef.Sha256("norm"),
             KnowledgeRetrievalOutcome.Completed, ["item-1"], [], [], [], null,
             DigestRef.Sha256("retrieval"));
         ControlledSourceValidator.ValidateRetrieval(registration, retrieval);
@@ -1323,7 +1323,7 @@ internal static class Program
         var registration = K2Registration();
         var retrieval = new KnowledgeSourceRetrieval(
             "RET-002", "SRC-001", new KnowledgeVersion("1.0.0"), "adapter", "1.0.0",
-            DateTimeOffset.UnixEpoch, null, "req-2", null, "san-1", "norm-1",
+            DateTimeOffset.UnixEpoch, null, "req-2", null, "san-1", DigestRef.Sha256("san"), "norm-1", DigestRef.Sha256("norm"),
             KnowledgeRetrievalOutcome.Partial, [], [], [], [], null, DigestRef.Sha256("partial"));
         Throws<InvalidOperationException>(() => ControlledSourceValidator.ValidateRetrieval(registration, retrieval));
     }
