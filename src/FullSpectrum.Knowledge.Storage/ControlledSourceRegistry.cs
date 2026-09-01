@@ -34,6 +34,13 @@ public sealed class ControlledSourceRegistry : IDisposable
                 snapshot_id TEXT PRIMARY KEY,
                 payload TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS kg_source_audit (
+                sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_id TEXT NOT NULL,
+                source_version TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                payload TEXT NOT NULL
+            );
             """);
     }
 
@@ -53,7 +60,20 @@ public sealed class ControlledSourceRegistry : IDisposable
         database.Execute(
             "INSERT INTO kg_source_registration(source_id, source_version, payload) VALUES (?, ?, ?)",
             registration.SourceId, registration.SourceVersion.Value, payload);
+        AppendAudit(registration, "REGISTERED", payload);
         return registration;
+    }
+
+    public KnowledgeSourceRegistration TransitionSource(string sourceId, KnowledgeVersion sourceVersion,
+        KnowledgeSourceLifecycleState target, string actor, DateTimeOffset atUtc)
+    {
+        var current = Get(sourceId, sourceVersion) ?? throw new InvalidOperationException("Source registration does not exist.");
+        ControlledSourceValidator.ValidateSourceTransition(current.State, target);
+        var updated = current with { State = target };
+        database.Execute("UPDATE kg_source_registration SET payload = ? WHERE source_id = ? AND source_version = ?",
+            Serialize(updated), sourceId, sourceVersion.Value);
+        AppendAudit(updated, "STATE_" + target.ToString().ToUpperInvariant(), JsonSerializer.Serialize(new { actor, at_utc = atUtc }));
+        return updated;
     }
 
     public KnowledgeSourceRegistration? Get(string sourceId, KnowledgeVersion sourceVersion)
@@ -97,6 +117,15 @@ public sealed class ControlledSourceRegistry : IDisposable
     {
         var registration = Get(snapshot.SourceId, snapshot.SourceVersion)
             ?? throw new InvalidOperationException("Source registration does not exist.");
+        if (snapshot.RetrievalId is null)
+            throw new InvalidOperationException("Snapshot must reference a recorded retrieval.");
+        var retrieval = GetRetrieval(snapshot.RetrievalId)
+            ?? throw new InvalidOperationException("Snapshot retrieval does not exist.");
+        if (!string.Equals(retrieval.SourceId, snapshot.SourceId, StringComparison.Ordinal) ||
+            retrieval.SourceVersion != snapshot.SourceVersion)
+            throw new InvalidOperationException("Snapshot retrieval identity does not match source.");
+        if (retrieval.Outcome == KnowledgeRetrievalOutcome.Failed || retrieval.Outcome == KnowledgeRetrievalOutcome.Unknown)
+            throw new InvalidOperationException("Failed or UNKNOWN retrievals cannot produce a snapshot.");
         ControlledSourceValidator.ValidateSnapshot(registration, snapshot);
         var payload = Serialize(snapshot);
         var existing = database.Query("SELECT payload FROM kg_dynamic_snapshot WHERE snapshot_id = ?", row => row.Text(0), snapshot.SnapshotId).SingleOrDefault();
@@ -106,6 +135,7 @@ public sealed class ControlledSourceRegistry : IDisposable
             throw new InvalidOperationException("Conflicting snapshot overwrite is forbidden.");
         }
         database.Execute("INSERT INTO kg_dynamic_snapshot(snapshot_id, payload) VALUES (?, ?)", snapshot.SnapshotId, payload);
+        AppendAudit(registration, "SNAPSHOT_SAVED", payload);
         return snapshot;
     }
 
@@ -114,6 +144,14 @@ public sealed class ControlledSourceRegistry : IDisposable
         var payload = database.Query("SELECT payload FROM kg_dynamic_snapshot WHERE snapshot_id = ?", row => row.Text(0), snapshotId).SingleOrDefault();
         return payload is null ? null : JsonSerializer.Deserialize<DynamicKnowledgeSnapshot>(payload, KnowledgeJson.Options);
     }
+
+    public IReadOnlyList<string> ReadAudit(string sourceId, KnowledgeVersion sourceVersion) => database.Query(
+        "SELECT payload FROM kg_source_audit WHERE source_id = ? AND source_version = ? ORDER BY sequence",
+        row => row.Text(0), sourceId, sourceVersion.Value);
+
+    private void AppendAudit(KnowledgeSourceRegistration registration, string eventType, string payload) => database.Execute(
+        "INSERT INTO kg_source_audit(source_id, source_version, event_type, payload) VALUES (?, ?, ?, ?)",
+        registration.SourceId, registration.SourceVersion.Value, eventType, payload);
 
     private static string Serialize<T>(T value) =>
         DeterministicJson.Canonicalize(JsonSerializer.Serialize(value, KnowledgeJson.Options));

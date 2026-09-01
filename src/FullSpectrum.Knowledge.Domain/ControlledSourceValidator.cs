@@ -74,6 +74,18 @@ public static class ControlledSourceValidator
             throw new ArgumentException("Snapshot digests must use SHA-256.", nameof(snapshot));
     }
 
+    public static void ValidateSourceTransition(KnowledgeSourceLifecycleState current, KnowledgeSourceLifecycleState target)
+    {
+        var valid = (current, target) switch
+        {
+            (KnowledgeSourceLifecycleState.Draft, KnowledgeSourceLifecycleState.ReviewRequired) => true,
+            (KnowledgeSourceLifecycleState.ReviewRequired, KnowledgeSourceLifecycleState.Active) => true,
+            (KnowledgeSourceLifecycleState.Active, KnowledgeSourceLifecycleState.Revoked) => true,
+            _ => false
+        };
+        if (!valid) throw new InvalidOperationException($"Invalid source lifecycle transition: {current} -> {target}.");
+    }
+
     private static void Require(string value, string name)
     {
         if (string.IsNullOrWhiteSpace(value)) throw new ArgumentException("Value is required.", name);

@@ -75,6 +75,7 @@ public sealed record DynamicKnowledgeSnapshot(
     IReadOnlyList<string> Unknowns,
     string Freshness,
     string SourceLevel,
+    string? RetrievalId,
     DigestRef SanitizationDigest,
     DigestRef NormalizationDigest,
     string? ParentSnapshotId,

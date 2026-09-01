@@ -110,7 +110,8 @@ internal static class Program
         ("K2 registry survives restart", K2RegistryRestart),
         ("K2 registry rejects conflicting retries", K2RegistryRetryConflict),
         ("K2 snapshot survives restart", K2SnapshotRestart),
-        ("K2 snapshot is immutable", K2SnapshotImmutable)
+        ("K2 snapshot is immutable", K2SnapshotImmutable),
+        ("K2 source lifecycle and audit replay", K2LifecycleAudit)
     ];
 
     private static int Main()
@@ -1379,9 +1380,27 @@ internal static class Program
         "norm-1", DigestRef.Sha256("norm"), KnowledgeRetrievalOutcome.Completed,
         ["item-1"], [], [], [], null, DigestRef.Sha256("retrieval"));
 
+    private static void K2LifecycleAudit()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"fskg-k2-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            using var registry = new ControlledSourceRegistry(Path.Combine(root, "metadata.sqlite3"));
+            var draft = K2Registration() with { State = KnowledgeSourceLifecycleState.Draft };
+            registry.Register(draft);
+            registry.TransitionSource("SRC-001", new KnowledgeVersion("1.0.0"), KnowledgeSourceLifecycleState.ReviewRequired, "reviewer", DateTimeOffset.UnixEpoch);
+            registry.TransitionSource("SRC-001", new KnowledgeVersion("1.0.0"), KnowledgeSourceLifecycleState.Active, "owner", DateTimeOffset.UnixEpoch);
+            registry.TransitionSource("SRC-001", new KnowledgeVersion("1.0.0"), KnowledgeSourceLifecycleState.Revoked, "owner", DateTimeOffset.UnixEpoch);
+            True(registry.ReadAudit("SRC-001", new KnowledgeVersion("1.0.0")).Count == 4);
+            Throws<InvalidOperationException>(() => registry.TransitionSource("SRC-001", new KnowledgeVersion("1.0.0"), KnowledgeSourceLifecycleState.Active, "owner", DateTimeOffset.UnixEpoch));
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+    }
+
     private static DynamicKnowledgeSnapshot K2Snapshot(string id) => new(
         id, "SRC-001", new KnowledgeVersion("1.0.0"), "adapter", "1.0.0", DateTimeOffset.UnixEpoch,
-        [DigestRef.Sha256("artifact").Value], ["item-1"], [], [], [], "2026-09-02T00:00:00Z", "publisher",
+        [DigestRef.Sha256("artifact").Value], ["item-1"], [], [], [], "2026-09-02T00:00:00Z", "publisher", null,
         DigestRef.Sha256("san"), DigestRef.Sha256("norm"), null, null, DigestRef.Sha256("snapshot"));
 
     private static void K2SnapshotRestart()
@@ -1391,9 +1410,9 @@ internal static class Program
         try
         {
             var db = Path.Combine(root, "metadata.sqlite3");
-            using (var registry = new ControlledSourceRegistry(db)) { registry.Register(K2Registration()); registry.SaveSnapshot(K2Snapshot("SNAP-001")); }
+            using (var registry = new ControlledSourceRegistry(db)) { registry.Register(K2Registration()); registry.RecordRetrieval(K2Retrieval("RET-SNAP-001", "req-snap-001")); registry.SaveSnapshot(K2Snapshot("SNAP-001") with { RetrievalId = "RET-SNAP-001" }); }
             using var reopened = new ControlledSourceRegistry(db);
-            Equal(DeterministicJson.Canonicalize(JsonSerializer.Serialize(K2Snapshot("SNAP-001"), KnowledgeJson.Options)),
+            Equal(DeterministicJson.Canonicalize(JsonSerializer.Serialize(K2Snapshot("SNAP-001") with { RetrievalId = "RET-SNAP-001" }, KnowledgeJson.Options)),
                 DeterministicJson.Canonicalize(JsonSerializer.Serialize(reopened.GetSnapshot("SNAP-001"), KnowledgeJson.Options)));
         }
         finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
@@ -1407,8 +1426,9 @@ internal static class Program
         {
             using var registry = new ControlledSourceRegistry(Path.Combine(root, "metadata.sqlite3"));
             registry.Register(K2Registration());
-            registry.SaveSnapshot(K2Snapshot("SNAP-002"));
-            Throws<InvalidOperationException>(() => registry.SaveSnapshot(K2Snapshot("SNAP-002") with { Freshness = "changed" }));
+            registry.RecordRetrieval(K2Retrieval("RET-SNAP-002", "req-snap-002"));
+            registry.SaveSnapshot(K2Snapshot("SNAP-002") with { RetrievalId = "RET-SNAP-002" });
+            Throws<InvalidOperationException>(() => registry.SaveSnapshot(K2Snapshot("SNAP-002") with { RetrievalId = "RET-SNAP-002", Freshness = "changed" }));
         }
         finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
     }
