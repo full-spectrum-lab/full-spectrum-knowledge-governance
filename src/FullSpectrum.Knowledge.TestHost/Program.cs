@@ -30,6 +30,7 @@ internal static class Program
         "verify-k0-03" when args.Length == 1 => VerifyK003(),
         "verify-k0-04" when args.Length == 1 => VerifyK004(),
         "verify-k0-05" when args.Length == 1 => VerifyK005(),
+        "verify-k2" when args.Length == 1 => VerifyK2(),
         "verify-release-facts" when args.Length == 1 => VerifyReleaseFacts(),
         "version" when args.Length == 1 => PrintVersion(),
         "digest" when args.Length == 2 => PrintDigest(args[1]),
@@ -76,6 +77,46 @@ internal static class Program
     {
         Console.WriteLine(DeterministicJson.ComputeSha256(File.ReadAllText(path)).Value);
         return 0;
+    }
+
+    private static int VerifyK2()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"fskg-verify-k2-{Guid.NewGuid():N}");
+        var checks = new List<object>();
+        try
+        {
+            var registration = new KnowledgeSourceRegistration(
+                "SRC-VERIFY-K2", new KnowledgeVersion("1.0.0"), "synthetic-publisher", KnowledgeSourceKind.Manual,
+                "terms://synthetic", "policy://synthetic", "offline-fixture", "1.0.0", ["example.invalid"],
+                KnowledgeSourceLifecycleState.Draft, DateTimeOffset.UnixEpoch, DigestRef.Sha256("registration"));
+            using var registry = new ControlledSourceRegistry(Path.Combine(root, "metadata.sqlite3"));
+            registry.Register(registration);
+            registry.TransitionSource(registration.SourceId, registration.SourceVersion, KnowledgeSourceLifecycleState.ReviewRequired, "reviewer", DateTimeOffset.UnixEpoch);
+            registry.TransitionSource(registration.SourceId, registration.SourceVersion, KnowledgeSourceLifecycleState.Active, "owner", DateTimeOffset.UnixEpoch);
+            var active = registry.Get(registration.SourceId, registration.SourceVersion)!;
+            var retrieval = new KnowledgeSourceRetrieval(
+                "RET-VERIFY-K2", registration.SourceId, registration.SourceVersion, registration.AdapterId, registration.AdapterVersion,
+                DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch, "REQ-VERIFY-K2", 200, "san-1", DigestRef.Sha256("san"),
+                "norm-1", DigestRef.Sha256("norm"), KnowledgeRetrievalOutcome.Completed, ["item-1"], [], [], [], null,
+                DigestRef.Sha256("retrieval"));
+            registry.RecordRetrieval(retrieval);
+            var snapshot = new DynamicKnowledgeSnapshot(
+                "SNAP-VERIFY-K2", registration.SourceId, registration.SourceVersion, registration.AdapterId, registration.AdapterVersion,
+                DateTimeOffset.UnixEpoch, [DigestRef.Sha256("artifact").Value], ["item-1"], [], [], [], "fixed-fixture", "publisher",
+                retrieval.RetrievalId, retrieval.SanitizationDigest, retrieval.NormalizationDigest, null, null, DigestRef.Sha256("snapshot"));
+            registry.SaveSnapshot(snapshot);
+            var replay = registry.ReplaySource(registration.SourceId, registration.SourceVersion);
+            var auditCount = registry.ReadAudit(registration.SourceId, registration.SourceVersion).Count;
+            checks.Add(new { name = "lifecycle", status = replay.State == KnowledgeSourceLifecycleState.Active ? "PASS" : "FAIL" });
+            checks.Add(new { name = "retrieval_snapshot_binding", status = registry.GetSnapshot(snapshot.SnapshotId) is not null ? "PASS" : "FAIL" });
+            checks.Add(new { name = "audit_replay", status = auditCount == 4 ? "PASS" : "FAIL", audit_events = auditCount });
+            checks.Add(new { name = "network_access", status = "NOT_EXECUTED_BY_DESIGN" });
+            checks.Add(new { name = "fixed_promotion", status = "NOT_IMPLEMENTED" });
+            var failed = replay.State != KnowledgeSourceLifecycleState.Active || registry.GetSnapshot(snapshot.SnapshotId) is null || auditCount != 4;
+            Console.WriteLine(JsonSerializer.Serialize(new { status = failed ? "FAIL" : "PASS", scope = "OFFLINE_K2_CONTRACT_AND_PERSISTENCE", checks }, KnowledgeJson.Options));
+            return failed ? 1 : 0;
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
     }
 
     private static int VerifyK002()
