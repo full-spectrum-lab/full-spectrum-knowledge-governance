@@ -49,6 +49,31 @@ public static class ControlledSourceValidator
             throw new InvalidOperationException("Failed retrievals require an error code.");
     }
 
+    public static void ValidateSnapshot(KnowledgeSourceRegistration registration, DynamicKnowledgeSnapshot snapshot)
+    {
+        ValidateRegistration(registration);
+        ArgumentNullException.ThrowIfNull(snapshot);
+        if (registration.State != KnowledgeSourceLifecycleState.Active)
+            throw new InvalidOperationException("Only ACTIVE sources may produce a snapshot.");
+        if (!string.Equals(registration.SourceId, snapshot.SourceId, StringComparison.Ordinal) ||
+            registration.SourceVersion != snapshot.SourceVersion ||
+            !string.Equals(registration.AdapterId, snapshot.AdapterId, StringComparison.Ordinal) ||
+            !string.Equals(registration.AdapterVersion, snapshot.AdapterVersion, StringComparison.Ordinal))
+            throw new InvalidOperationException("Snapshot source or adapter identity does not match registration.");
+        Require(snapshot.SnapshotId, nameof(snapshot.SnapshotId));
+        Require(snapshot.Freshness, nameof(snapshot.Freshness));
+        Require(snapshot.SourceLevel, nameof(snapshot.SourceLevel));
+        if (snapshot.CanonicalArtifactDigests.Any(string.IsNullOrWhiteSpace))
+            throw new ArgumentException("Snapshot artifact digests cannot be blank.", nameof(snapshot));
+        if (snapshot.Unknowns.Count == 0 && snapshot.UnresolvedItemIds.Count == 0 &&
+            snapshot.SelectedItemIds.Count == 0 && snapshot.ExcludedItemIds.Count == 0)
+            throw new InvalidOperationException("Snapshot must preserve at least one selected, excluded, unresolved or UNKNOWN item.");
+        if (!string.Equals(snapshot.SanitizationDigest.Algorithm, "SHA-256", StringComparison.Ordinal) ||
+            !string.Equals(snapshot.NormalizationDigest.Algorithm, "SHA-256", StringComparison.Ordinal) ||
+            !string.Equals(snapshot.SnapshotDigest.Algorithm, "SHA-256", StringComparison.Ordinal))
+            throw new ArgumentException("Snapshot digests must use SHA-256.", nameof(snapshot));
+    }
+
     private static void Require(string value, string name)
     {
         if (string.IsNullOrWhiteSpace(value)) throw new ArgumentException("Value is required.", name);

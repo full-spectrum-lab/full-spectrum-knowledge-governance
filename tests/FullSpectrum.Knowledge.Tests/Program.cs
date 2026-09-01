@@ -108,7 +108,9 @@ internal static class Program
         ("K2 retrieval requires an active matching source", K2RetrievalBoundary),
         ("K2 partial retrieval preserves UNKNOWN evidence", K2PartialRequiresEvidence),
         ("K2 registry survives restart", K2RegistryRestart),
-        ("K2 registry rejects conflicting retries", K2RegistryRetryConflict)
+        ("K2 registry rejects conflicting retries", K2RegistryRetryConflict),
+        ("K2 snapshot survives restart", K2SnapshotRestart),
+        ("K2 snapshot is immutable", K2SnapshotImmutable)
     ];
 
     private static int Main()
@@ -1376,6 +1378,40 @@ internal static class Program
         DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch, request, 200, "san-1", DigestRef.Sha256("san"),
         "norm-1", DigestRef.Sha256("norm"), KnowledgeRetrievalOutcome.Completed,
         ["item-1"], [], [], [], null, DigestRef.Sha256("retrieval"));
+
+    private static DynamicKnowledgeSnapshot K2Snapshot(string id) => new(
+        id, "SRC-001", new KnowledgeVersion("1.0.0"), "adapter", "1.0.0", DateTimeOffset.UnixEpoch,
+        [DigestRef.Sha256("artifact").Value], ["item-1"], [], [], [], "2026-09-02T00:00:00Z", "publisher",
+        DigestRef.Sha256("san"), DigestRef.Sha256("norm"), null, null, DigestRef.Sha256("snapshot"));
+
+    private static void K2SnapshotRestart()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"fskg-k2-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            var db = Path.Combine(root, "metadata.sqlite3");
+            using (var registry = new ControlledSourceRegistry(db)) { registry.Register(K2Registration()); registry.SaveSnapshot(K2Snapshot("SNAP-001")); }
+            using var reopened = new ControlledSourceRegistry(db);
+            Equal(DeterministicJson.Canonicalize(JsonSerializer.Serialize(K2Snapshot("SNAP-001"), KnowledgeJson.Options)),
+                DeterministicJson.Canonicalize(JsonSerializer.Serialize(reopened.GetSnapshot("SNAP-001"), KnowledgeJson.Options)));
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+    }
+
+    private static void K2SnapshotImmutable()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"fskg-k2-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            using var registry = new ControlledSourceRegistry(Path.Combine(root, "metadata.sqlite3"));
+            registry.Register(K2Registration());
+            registry.SaveSnapshot(K2Snapshot("SNAP-002"));
+            Throws<InvalidOperationException>(() => registry.SaveSnapshot(K2Snapshot("SNAP-002") with { Freshness = "changed" }));
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+    }
 
     private static IReadOnlyList<string> ValidateFixture() => Validate(File.ReadAllText(FixturePath()));
 

@@ -60,3 +60,23 @@ public sealed record KnowledgeSourceRetrieval(
     IReadOnlyList<string> Unknowns,
     string? ErrorCode,
     DigestRef RetrievalDigest);
+
+public sealed record DynamicKnowledgeSnapshot(
+    string SnapshotId,
+    string SourceId,
+    KnowledgeVersion SourceVersion,
+    string AdapterId,
+    string AdapterVersion,
+    DateTimeOffset AsOfUtc,
+    IReadOnlyList<string> CanonicalArtifactDigests,
+    IReadOnlyList<string> SelectedItemIds,
+    IReadOnlyList<string> ExcludedItemIds,
+    IReadOnlyList<string> UnresolvedItemIds,
+    IReadOnlyList<string> Unknowns,
+    string Freshness,
+    string SourceLevel,
+    DigestRef SanitizationDigest,
+    DigestRef NormalizationDigest,
+    string? ParentSnapshotId,
+    string? ChangeRelationship,
+    DigestRef SnapshotDigest);
