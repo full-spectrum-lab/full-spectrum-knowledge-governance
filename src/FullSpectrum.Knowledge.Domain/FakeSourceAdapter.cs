@@ -32,6 +32,22 @@ public sealed class FakeSourceAdapter
         return new(KnowledgeRetrievalOutcome.Completed, Digest(fixture.RawPayload), Digest(fixture.NormalizedPayload), null, AdapterId, Version);
     }
 
+    public KnowledgeSourceRetrieval ToRetrieval(FakeFetchRequest request, FakeFetchResult result, string retrievalId, DateTimeOffset requestedAtUtc)
+    {
+        var sanitization = DigestRef.Sha256("sanitization:v1");
+        var normalization = DigestRef.Sha256("normalization:v1");
+        var unknowns = result.Outcome == KnowledgeRetrievalOutcome.Unknown ? [result.ErrorCode ?? "UNKNOWN"] : Array.Empty<string>();
+        var provisional = new KnowledgeSourceRetrieval(
+            retrievalId, request.SourceId, request.SourceVersion, AdapterId, Version,
+            requestedAtUtc, result.Outcome == KnowledgeRetrievalOutcome.Completed ? requestedAtUtc : null,
+            request.CorrelationId, result.Outcome == KnowledgeRetrievalOutcome.Completed ? 200 : null,
+            "v1", sanitization, "v1", normalization, result.Outcome,
+            result.Outcome == KnowledgeRetrievalOutcome.Completed ? ["fake-item-1"] : Array.Empty<string>(),
+            Array.Empty<string>(), Array.Empty<string>(), unknowns,
+            result.ErrorCode, DigestRef.Sha256("retrieval:" + request.CorrelationId));
+        return provisional with { RetrievalDigest = DeterministicJson.ComputeSha256(provisional with { RetrievalDigest = DigestRef.Sha256(new string('0', 64)) }) };
+    }
+
     private FakeFetchResult Failure(KnowledgeRetrievalOutcome outcome, string error) => new(outcome, null, null, error, AdapterId, Version);
     private static string Digest(string value) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
 }

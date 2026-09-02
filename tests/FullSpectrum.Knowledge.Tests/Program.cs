@@ -117,6 +117,7 @@ internal static class Program
         ,("K2 snapshot enforces parent relationship", K2SnapshotParent)
         ,("team03 fake adapter is deterministic and offline", Team03FakeAdapterDeterministic)
         ,("team03 fake adapter fails closed when network is disabled", Team03FakeAdapterNetworkDisabled)
+        ,("team03 fake adapter maps results to team02 retrieval contract", Team03FakeAdapterRetrievalContract)
     ];
 
     private static int Main()
@@ -1575,6 +1576,18 @@ internal static class Program
         Equal(KnowledgeRetrievalOutcome.Unknown, result.Outcome);
         Equal("NETWORK_DISABLED", result.ErrorCode);
         Equal(null, result.RawDigest);
+    }
+
+    private static void Team03FakeAdapterRetrievalContract()
+    {
+        var fixture = new FakeSourceFixture("SRC-FAKE", new KnowledgeVersion("1.0.0"), "raw", "normalized");
+        var adapter = new FakeSourceAdapter("fake.adapter", "1.0.0", [fixture]);
+        var request = new FakeFetchRequest(fixture.SourceId, fixture.SourceVersion, "corr-3", true);
+        var retrieval = adapter.ToRetrieval(request, adapter.Fetch(request), "RET-FAKE", DateTimeOffset.UnixEpoch);
+        Equal(KnowledgeRetrievalOutcome.Completed, retrieval.Outcome);
+        Equal(request.CorrelationId, retrieval.RequestIdentity);
+        Equal("fake-item-1", retrieval.CanonicalItemIds.Single());
+        Equal("SHA-256", retrieval.RetrievalDigest.Algorithm);
     }
 
     private sealed class RegistryFixture : IDisposable
