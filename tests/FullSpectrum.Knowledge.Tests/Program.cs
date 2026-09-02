@@ -115,6 +115,8 @@ internal static class Program
         ,("K2 schemas are strict and versioned", K2SchemasStrict)
         ,("K2 snapshot rejects digest tampering", K2SnapshotDigestTamper)
         ,("K2 snapshot enforces parent relationship", K2SnapshotParent)
+        ,("team03 fake adapter is deterministic and offline", Team03FakeAdapterDeterministic)
+        ,("team03 fake adapter fails closed when network is disabled", Team03FakeAdapterNetworkDisabled)
     ];
 
     private static int Main()
@@ -1550,6 +1552,29 @@ internal static class Program
             return;
         }
         throw new InvalidOperationException($"Expected {typeof(T).Name}.");
+    }
+
+    private static void Team03FakeAdapterDeterministic()
+    {
+        var fixture = new FakeSourceFixture("SRC-FAKE", new KnowledgeVersion("1.0.0"), "raw", "normalized");
+        var adapter = new FakeSourceAdapter("fake.adapter", "1.0.0", [fixture]);
+        var request = new FakeFetchRequest(fixture.SourceId, fixture.SourceVersion, "corr-1", true);
+        var first = adapter.Fetch(request);
+        var second = adapter.Fetch(request);
+        Equal(KnowledgeRetrievalOutcome.Completed, first.Outcome);
+        Equal(first.RawDigest, second.RawDigest);
+        Equal(first.NormalizedDigest, second.NormalizedDigest);
+        Equal("fake.adapter", adapter.Describe().AdapterId);
+    }
+
+    private static void Team03FakeAdapterNetworkDisabled()
+    {
+        var fixture = new FakeSourceFixture("SRC-FAKE", new KnowledgeVersion("1.0.0"), "raw", "normalized");
+        var adapter = new FakeSourceAdapter("fake.adapter", "1.0.0", [fixture]);
+        var result = adapter.Fetch(new FakeFetchRequest(fixture.SourceId, fixture.SourceVersion, "corr-2"));
+        Equal(KnowledgeRetrievalOutcome.Unknown, result.Outcome);
+        Equal("NETWORK_DISABLED", result.ErrorCode);
+        Equal(null, result.RawDigest);
     }
 
     private sealed class RegistryFixture : IDisposable
