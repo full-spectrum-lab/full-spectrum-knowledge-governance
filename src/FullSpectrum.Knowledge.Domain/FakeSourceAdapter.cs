@@ -48,6 +48,19 @@ public sealed class FakeSourceAdapter
         return provisional with { RetrievalDigest = DeterministicJson.ComputeSha256(provisional with { RetrievalDigest = DigestRef.Sha256(new string('0', 64)) }) };
     }
 
+    public DynamicKnowledgeSnapshot ToSnapshot(FakeFetchRequest request, FakeFetchResult result, KnowledgeSourceRetrieval retrieval, string snapshotId, DateTimeOffset asOfUtc, string? parentSnapshotId = null)
+    {
+        if (result.Outcome != KnowledgeRetrievalOutcome.Completed || result.NormalizedDigest is null)
+            throw new InvalidOperationException("Only completed fake fetches can produce a snapshot.");
+        var snapshot = new DynamicKnowledgeSnapshot(
+            snapshotId, request.SourceId, request.SourceVersion, AdapterId, Version, asOfUtc,
+            [result.NormalizedDigest], ["fake-item-1"], [], [], [], "fixture", "synthetic",
+            retrieval.RetrievalId, retrieval.SanitizationDigest, retrieval.NormalizationDigest,
+            parentSnapshotId, parentSnapshotId is null ? null : "CONTENT_CHANGED",
+            DigestRef.Sha256(new string('0', 64)));
+        return snapshot with { SnapshotDigest = ControlledSourceValidator.ComputeSnapshotDigest(snapshot) };
+    }
+
     private FakeFetchResult Failure(KnowledgeRetrievalOutcome outcome, string error) => new(outcome, null, null, error, AdapterId, Version);
     private static string Digest(string value) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
 }

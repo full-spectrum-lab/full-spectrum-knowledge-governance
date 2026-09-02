@@ -118,6 +118,7 @@ internal static class Program
         ,("team03 fake adapter is deterministic and offline", Team03FakeAdapterDeterministic)
         ,("team03 fake adapter fails closed when network is disabled", Team03FakeAdapterNetworkDisabled)
         ,("team03 fake adapter maps results to team02 retrieval contract", Team03FakeAdapterRetrievalContract)
+        ,("team03 fake adapter persists a team02 snapshot", Team03FakeAdapterSnapshotPersistence)
     ];
 
     private static int Main()
@@ -1588,6 +1589,34 @@ internal static class Program
         Equal(request.CorrelationId, retrieval.RequestIdentity);
         Equal("fake-item-1", retrieval.CanonicalItemIds.Single());
         Equal("SHA-256", retrieval.RetrievalDigest.Algorithm);
+    }
+
+    private static void Team03FakeAdapterSnapshotPersistence()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"fskg-team03-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            var fixture = new FakeSourceFixture("SRC-FAKE", new KnowledgeVersion("1.0.0"), "raw", "normalized");
+            var adapter = new FakeSourceAdapter("fake.adapter", "1.0.0", [fixture]);
+            var registration = new KnowledgeSourceRegistration(fixture.SourceId, fixture.SourceVersion, "synthetic", KnowledgeSourceKind.Manual,
+                "terms://synthetic", "policy://synthetic", adapter.AdapterId, adapter.Version, ["example.invalid"],
+                KnowledgeSourceLifecycleState.Active, DateTimeOffset.UnixEpoch, DigestRef.Sha256("registration"));
+            var request = new FakeFetchRequest(fixture.SourceId, fixture.SourceVersion, "corr-persist", true);
+            var result = adapter.Fetch(request);
+            var retrieval = adapter.ToRetrieval(request, result, "RET-FAKE-PERSIST", DateTimeOffset.UnixEpoch);
+            var snapshot = adapter.ToSnapshot(request, result, retrieval, "SNAP-FAKE-PERSIST", DateTimeOffset.UnixEpoch);
+            using (var registry = new ControlledSourceRegistry(Path.Combine(root, "metadata.sqlite3")))
+            {
+                registry.Register(registration);
+                registry.RecordRetrieval(retrieval);
+                registry.SaveSnapshot(snapshot);
+            }
+            using var reopened = new ControlledSourceRegistry(Path.Combine(root, "metadata.sqlite3"));
+            Equal(snapshot.SnapshotDigest, reopened.GetSnapshot(snapshot.SnapshotId)!.SnapshotDigest);
+            True(reopened.ReadAudit(fixture.SourceId, fixture.SourceVersion).Any(x => x.EventType == "SNAPSHOT_SAVED"));
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
     }
 
     private sealed class RegistryFixture : IDisposable
