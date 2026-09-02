@@ -72,7 +72,20 @@ public static class ControlledSourceValidator
             !string.Equals(snapshot.NormalizationDigest.Algorithm, "SHA-256", StringComparison.Ordinal) ||
             !string.Equals(snapshot.SnapshotDigest.Algorithm, "SHA-256", StringComparison.Ordinal))
             throw new ArgumentException("Snapshot digests must use SHA-256.", nameof(snapshot));
+        if (!string.Equals(snapshot.SnapshotDigest.Value, ComputeSnapshotDigest(snapshot).Value, StringComparison.Ordinal))
+            throw new InvalidOperationException("Snapshot digest does not match canonical snapshot content.");
     }
+
+    public static DigestRef ComputeSnapshotDigest(DynamicKnowledgeSnapshot snapshot) =>
+        DeterministicJson.ComputeSha256(new
+        {
+            snapshot.SnapshotId, snapshot.SourceId, source_version = snapshot.SourceVersion.Value,
+            snapshot.AdapterId, snapshot.AdapterVersion, snapshot.AsOfUtc,
+            snapshot.CanonicalArtifactDigests, snapshot.SelectedItemIds, snapshot.ExcludedItemIds,
+            snapshot.UnresolvedItemIds, snapshot.Unknowns, snapshot.Freshness, snapshot.SourceLevel,
+            snapshot.RetrievalId, snapshot.SanitizationDigest, snapshot.NormalizationDigest,
+            snapshot.ParentSnapshotId, snapshot.ChangeRelationship
+        });
 
     public static void ValidateSourceTransition(KnowledgeSourceLifecycleState current, KnowledgeSourceLifecycleState target)
     {
