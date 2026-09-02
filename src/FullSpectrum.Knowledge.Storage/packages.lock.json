@@ -4,6 +4,12 @@
     "net10.0": {
       "fullspectrum.knowledge.contracts": {
         "type": "Project"
+      },
+      "fullspectrum.knowledge.domain": {
+        "type": "Project",
+        "dependencies": {
+          "FullSpectrum.Knowledge.Contracts": "[0.1.1-alpha, )"
+        }
       }
     }
   }
