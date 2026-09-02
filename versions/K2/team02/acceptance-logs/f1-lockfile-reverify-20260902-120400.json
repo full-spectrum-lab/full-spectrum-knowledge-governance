@@ -1,0 +1,49 @@
+{
+  "report": "F1 lockfile reverification (local lightweight)",
+  "commit": "8dbaae9",
+  "commit_full": "8dbaae9a18994cb8f99fc42fdeeda42e7eb1f303",
+  "commit_message": "build: refresh project lock files for K2 dependencies",
+  "reverify_time_local": "2026-09-02T11:59:16+08:00",
+  "sdk_path": "C:\\Users\\wangjian0926\\.dotnet-sdk-10.0.301\\dotnet.exe",
+  "sdk_version": "10.0.301",
+  "head_match": "PASS",
+  "sdk_runnable": "PASS",
+  "locked_restore": "PASS",
+  "locked_restore_rc": 0,
+  "release_build": "PASS",
+  "release_build_rc": 0,
+  "full_regression": "103/103 PASS",
+  "full_regression_rc": 0,
+  "verify_k2": "PASS",
+  "verify_k2_rc": 0,
+  "verify_k2_detail": {
+    "status": "PASS",
+    "scope": "OFFLINE_K2_CONTRACT_AND_PERSISTENCE",
+    "checks": {
+      "lifecycle": "PASS",
+      "retrieval_snapshot_binding": "PASS",
+      "audit_replay": "PASS",
+      "network_access": "NOT_EXECUTED_BY_DESIGN",
+      "fixed_promotion": "NOT_IMPLEMENTED"
+    }
+  },
+  "packages_lock_diff": "CLEAN",
+  "packages_lock_diff_rc": 0,
+  "worktree_preserved": true,
+  "worktree_before": [
+    "?? .tmp_make_doc.py",
+    "?? artifacts/",
+    "?? docs/onboarding/",
+    "?? docs/reviews/V021_WORKBUDDY_RELEASE_BUNDLE_REVERIFY_PROMPT_2026-08-31-ZH.md"
+  ],
+  "worktree_after": [
+    "?? .tmp_make_doc.py",
+    "?? artifacts/",
+    "?? docs/onboarding/",
+    "?? docs/reviews/V021_WORKBUDDY_RELEASE_BUNDLE_REVERIFY_PROMPT_2026-08-31-ZH.md"
+  ],
+  "f1_status": "FIXED",
+  "independent_second_host": "NOT_EXECUTED",
+  "production_ready": "NO",
+  "final_verdict": "PASS"
+}
