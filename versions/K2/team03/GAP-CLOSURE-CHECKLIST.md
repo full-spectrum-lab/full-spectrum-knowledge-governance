@@ -2,6 +2,8 @@
 
 状态：`OPEN / IMPLEMENTATION BLOCKED UNTIL CLOSED`
 
+设计补充状态（2026-09-02）：B1、H1、H2、H3、H4 的文档契约已补充；代码实现、契约测试和复审证据仍未完成，清单整体保持 `OPEN`。
+
 本清单依据 2026-09-02 两份外部独立设计评审报告建立。team03 在全部必修项关闭并完成复审前，不得实现真实网络适配器、连接生产环境或改变 team02 冻结边界。
 
 ## 必修项
@@ -56,4 +58,3 @@
 - 不得以外部评审 `APPROVE_WITH_CHANGES` 作为实现通过；
 - 不得修改 Observer v0.4、Engine、team02 或已冻结发布包；
 - 不得因网络适配器设计而改变 `PRODUCTION_READY=NO`。
-
