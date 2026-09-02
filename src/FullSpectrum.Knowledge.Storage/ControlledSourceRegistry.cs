@@ -131,6 +131,15 @@ public sealed class ControlledSourceRegistry : IDisposable
             throw new InvalidOperationException("Snapshot policy digests do not match the bound retrieval.");
         if (retrieval.Outcome == KnowledgeRetrievalOutcome.Failed || retrieval.Outcome == KnowledgeRetrievalOutcome.Unknown)
             throw new InvalidOperationException("Failed or UNKNOWN retrievals cannot produce a snapshot.");
+        if (snapshot.ParentSnapshotId is not null)
+        {
+            if (string.IsNullOrWhiteSpace(snapshot.ChangeRelationship))
+                throw new InvalidOperationException("A child snapshot requires a change relationship.");
+            var parent = GetSnapshot(snapshot.ParentSnapshotId)
+                ?? throw new InvalidOperationException("Parent snapshot does not exist.");
+            if (!string.Equals(parent.SourceId, snapshot.SourceId, StringComparison.Ordinal) || parent.SourceVersion != snapshot.SourceVersion)
+                throw new InvalidOperationException("Parent snapshot identity does not match source.");
+        }
         ControlledSourceValidator.ValidateSnapshot(registration, snapshot);
         var payload = Serialize(snapshot);
         var existing = database.Query("SELECT payload FROM kg_dynamic_snapshot WHERE snapshot_id = ?", row => row.Text(0), snapshot.SnapshotId).SingleOrDefault();

@@ -1,6 +1,6 @@
 # K2 Controlled Knowledge Sources and Snapshots proposal
 
-Status: `DRAFT / NOT IMPLEMENTED / NOT A REQUIREMENT CHANGE`
+Status: `IMPLEMENTATION SLICE COMPLETE / NETWORK AND DYNAMIC RUNTIME DEFERRED`
 
 Date: 2026-08-27
 
@@ -9,6 +9,11 @@ Authority: `docs/adr/ADR-010-controlled-knowledge-sources-and-snapshots.md`
 This document is an implementation-preparation proposal for the Owner-approved
 K2 direction. It does not authorize code, schema, source acquisition, network
 access, a version release, or a change to the v0.2.0-alpha baseline.
+
+The offline source registry, retrieval envelope, lifecycle, audit chain,
+immutable snapshot persistence, strict schemas and `verify-k2` checks are now
+implemented. Network adapters, real source acquisition and Dynamic/Hybrid
+resolution remain deferred and are not represented as available capability.
 
 ## 1. Boundary
 

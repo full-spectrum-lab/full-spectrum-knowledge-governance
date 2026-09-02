@@ -113,6 +113,8 @@ internal static class Program
         ("K2 snapshot is immutable", K2SnapshotImmutable),
         ("K2 source lifecycle and audit replay", K2LifecycleAudit)
         ,("K2 schemas are strict and versioned", K2SchemasStrict)
+        ,("K2 snapshot rejects digest tampering", K2SnapshotDigestTamper)
+        ,("K2 snapshot enforces parent relationship", K2SnapshotParent)
     ];
 
     private static int Main()
@@ -1412,6 +1414,31 @@ internal static class Program
             Equal(JsonValueKind.False, document.RootElement.GetProperty("additionalProperties").ValueKind);
             True(document.RootElement.GetProperty("required").GetArrayLength() > 0);
         }
+    }
+
+    private static void K2SnapshotDigestTamper()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"fskg-k2-{Guid.NewGuid():N}"); Directory.CreateDirectory(root);
+        try
+        {
+            using var registry = new ControlledSourceRegistry(Path.Combine(root, "metadata.sqlite3"));
+            registry.Register(K2Registration()); registry.RecordRetrieval(K2Retrieval("RET-TAMPER", "req-tamper"));
+            Throws<InvalidOperationException>(() => registry.SaveSnapshot(K2Snapshot("SNAP-TAMPER", "RET-TAMPER") with { Freshness = "tampered" }));
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+    }
+
+    private static void K2SnapshotParent()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"fskg-k2-{Guid.NewGuid():N}"); Directory.CreateDirectory(root);
+        try
+        {
+            using var registry = new ControlledSourceRegistry(Path.Combine(root, "metadata.sqlite3"));
+            registry.Register(K2Registration()); registry.RecordRetrieval(K2Retrieval("RET-PARENT", "req-parent"));
+            var child = K2Snapshot("SNAP-CHILD", "RET-PARENT") with { ParentSnapshotId = "MISSING" };
+            Throws<InvalidOperationException>(() => registry.SaveSnapshot(child));
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
     }
 
     private static DynamicKnowledgeSnapshot K2Snapshot(string id, string? retrievalId = null)
