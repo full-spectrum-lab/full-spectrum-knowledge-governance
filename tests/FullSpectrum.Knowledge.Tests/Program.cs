@@ -119,6 +119,9 @@ internal static class Program
         ,("team03 fake adapter fails closed when network is disabled", Team03FakeAdapterNetworkDisabled)
         ,("team03 fake adapter maps results to team02 retrieval contract", Team03FakeAdapterRetrievalContract)
         ,("team03 fake adapter persists a team02 snapshot", Team03FakeAdapterSnapshotPersistence)
+        ,("team03 adapter registry resolves exact versions", Team03AdapterRegistryExactVersion)
+        ,("team03 adapter registry rejects identity conflicts", Team03AdapterRegistryIdentityConflict)
+        ,("team03 adapter registry rejects revoked adapters", Team03AdapterRegistryRevocation)
     ];
 
     private static int Main()
@@ -1617,6 +1620,32 @@ internal static class Program
             True(reopened.ReadAudit(fixture.SourceId, fixture.SourceVersion).Any(x => x.EventType == "SNAPSHOT_SAVED"));
         }
         finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+    }
+
+    private static void Team03AdapterRegistryExactVersion()
+    {
+        var registry = new SourceAdapterRegistry();
+        var v1 = new FakeSourceAdapter("fake.adapter", "1.0.0", []);
+        var v2 = new FakeSourceAdapter("fake.adapter", "2.0.0", []);
+        registry.Register(v1); registry.Register(v2);
+        Equal(v1, registry.Resolve("fake.adapter", "1.0.0"));
+        Equal(v2, registry.Resolve("fake.adapter", "2.0.0"));
+        Throws<InvalidOperationException>(() => registry.Resolve("fake.adapter", "3.0.0"));
+    }
+
+    private static void Team03AdapterRegistryIdentityConflict()
+    {
+        var registry = new SourceAdapterRegistry();
+        registry.Register(new FakeSourceAdapter("fake.adapter", "1.0.0", []));
+        Throws<InvalidOperationException>(() => registry.Register(new FakeSourceAdapter("fake.adapter", "1.0.0", [])));
+    }
+
+    private static void Team03AdapterRegistryRevocation()
+    {
+        var registry = new SourceAdapterRegistry();
+        registry.Register(new FakeSourceAdapter("fake.adapter", "1.0.0", []));
+        registry.Revoke("fake.adapter", "1.0.0");
+        Throws<InvalidOperationException>(() => registry.Resolve("fake.adapter", "1.0.0"));
     }
 
     private sealed class RegistryFixture : IDisposable

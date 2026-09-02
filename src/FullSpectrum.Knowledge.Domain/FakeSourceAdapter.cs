@@ -9,6 +9,38 @@ public sealed record FakeSourceFixture(string SourceId, KnowledgeVersion SourceV
 public sealed record FakeFetchRequest(string SourceId, KnowledgeVersion SourceVersion, string CorrelationId, bool NetworkEnabled = false);
 public sealed record FakeFetchResult(KnowledgeRetrievalOutcome Outcome, string? RawDigest, string? NormalizedDigest, string? ErrorCode, string AdapterId, string AdapterVersion);
 
+public sealed class SourceAdapterRegistry
+{
+    private readonly Dictionary<(string AdapterId, string Version), FakeSourceAdapter> adapters = [];
+    private readonly HashSet<(string AdapterId, string Version)> revoked = [];
+
+    public void Register(FakeSourceAdapter adapter)
+    {
+        ArgumentNullException.ThrowIfNull(adapter);
+        _ = new KnowledgeVersion(adapter.Version);
+        var key = (adapter.AdapterId, adapter.Version);
+        if (adapters.TryGetValue(key, out var existing) && !ReferenceEquals(existing, adapter))
+            throw new InvalidOperationException("ADAPTER_IDENTITY_CONFLICT");
+        adapters[key] = adapter;
+    }
+
+    public FakeSourceAdapter Resolve(string adapterId, string version)
+    {
+        var key = (adapterId, version);
+        if (revoked.Contains(key)) throw new InvalidOperationException("ADAPTER_REVOKED");
+        return adapters.TryGetValue(key, out var adapter)
+            ? adapter
+            : throw new InvalidOperationException("ADAPTER_NOT_REGISTERED");
+    }
+
+    public void Revoke(string adapterId, string version)
+    {
+        var key = (adapterId, version);
+        if (!adapters.ContainsKey(key)) throw new InvalidOperationException("ADAPTER_NOT_REGISTERED");
+        revoked.Add(key);
+    }
+}
+
 /// <summary>Deterministic, offline-only adapter used for team03 contract tests.</summary>
 public sealed class FakeSourceAdapter
 {
