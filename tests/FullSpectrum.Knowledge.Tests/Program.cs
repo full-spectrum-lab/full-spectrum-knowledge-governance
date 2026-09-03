@@ -124,6 +124,7 @@ internal static class Program
         ,("team03 adapter registry rejects revoked adapters", Team03AdapterRegistryRevocation)
         ,("team03 adapter registry records an auditable chain", Team03AdapterRegistryAudit)
         ,("team03 adapter audit replay rejects tampering", Team03AdapterAuditReplay)
+        ,("team03 adapter audit survives JSON replay", Team03AdapterAuditJsonReplay)
         ,("team03 network policy defaults to disabled", Team03NetworkPolicyDisabled)
         ,("team03 network policy enforces authorization scope and expiry", Team03NetworkPolicyAuthorization)
         ,("team03 network error code catalog is stable", Team03NetworkErrorCatalog)
@@ -132,6 +133,8 @@ internal static class Program
         ,("team03 credentials use opaque handles and revoke cleanly", Team03CredentialIsolation)
         ,("team03 credential redaction removes canary secrets", Team03CredentialRedaction)
         ,("team03 fake adapter negative matrix is fail closed", Team03FakeAdapterNegativeMatrix)
+        ,("team03 fake adapter rejects failed snapshot promotion", Team03AdapterRejectsFailedSnapshot)
+        ,("team03 fake adapter preserves parent snapshot binding", Team03FakeAdapterParentBinding)
     ];
 
     private static int Main()
@@ -1681,6 +1684,16 @@ internal static class Program
         Throws<InvalidOperationException>(() => SourceAdapterRegistry.VerifyAuditChain(tampered));
     }
 
+    private static void Team03AdapterAuditJsonReplay()
+    {
+        var registry = new SourceAdapterRegistry();
+        registry.Register(new FakeSourceAdapter("fake.adapter", "1.0.0", []));
+        registry.Revoke("fake.adapter", "1.0.0");
+        var replay = SourceAdapterRegistry.ReplayAuditJson(registry.ExportAuditJson());
+        Equal(2, replay.Count);
+        Equal("REVOKED", replay[1].EventType);
+    }
+
     private static void Team03NetworkPolicyDisabled()
     {
         Equal("NETWORK_DISABLED", NetworkAccessPolicy.Evaluate(false, "SRC", "ADAPTER", null, DateTimeOffset.UnixEpoch));
@@ -1760,6 +1773,34 @@ internal static class Program
             Equal(code, result.ErrorCode);
             Equal(null, result.RawDigest);
         }
+    }
+
+    private static void Team03FakeAdapterParentBinding()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"fskg-parent-{Guid.NewGuid():N}"); Directory.CreateDirectory(root);
+        try
+        {
+            var fixture = new FakeSourceFixture("SRC-PARENT", new KnowledgeVersion("1.0.0"), "raw", "normalized");
+            var adapter = new FakeSourceAdapter("fake.adapter", "1.0.0", [fixture]);
+            var registration = new KnowledgeSourceRegistration(fixture.SourceId, fixture.SourceVersion, "synthetic", KnowledgeSourceKind.Manual, "terms://x", "policy://x", adapter.AdapterId, adapter.Version, ["example.invalid"], KnowledgeSourceLifecycleState.Active, DateTimeOffset.UnixEpoch, DigestRef.Sha256("r"));
+            var req1 = new FakeFetchRequest(fixture.SourceId, fixture.SourceVersion, "p1", true); var res1 = adapter.Fetch(req1); var ret1 = adapter.ToRetrieval(req1, res1, "RET-P1", DateTimeOffset.UnixEpoch); var s1 = adapter.ToSnapshot(req1, res1, ret1, "SNAP-P1", DateTimeOffset.UnixEpoch);
+            var req2 = new FakeFetchRequest(fixture.SourceId, fixture.SourceVersion, "p2", true); var res2 = adapter.Fetch(req2); var ret2 = adapter.ToRetrieval(req2, res2, "RET-P2", DateTimeOffset.UnixEpoch); var s2 = adapter.ToSnapshot(req2, res2, ret2, "SNAP-P2", DateTimeOffset.UnixEpoch.AddMinutes(1), s1.SnapshotId);
+            using var registry = new ControlledSourceRegistry(Path.Combine(root, "db.sqlite3")); registry.Register(registration); registry.RecordRetrieval(ret1); registry.SaveSnapshot(s1); registry.RecordRetrieval(ret2); registry.SaveSnapshot(s2);
+            Equal(s1.SnapshotId, registry.GetSnapshot(s2.SnapshotId)!.ParentSnapshotId);
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+    }
+
+    private static void Team03AdapterRejectsFailedSnapshot()
+    {
+        var fixture = new FakeSourceFixture("SRC-NEG", new KnowledgeVersion("1.0.0"), "raw", "normalized");
+        var adapter = new FakeSourceAdapter("fake.adapter", "1.0.0", [fixture], FakeFailureMode.Normalization);
+        var request = new FakeFetchRequest(fixture.SourceId, fixture.SourceVersion, "promote", true);
+        var result = adapter.Fetch(request);
+        var retrieval = adapter.ToRetrieval(request, result, "RET-FAIL", DateTimeOffset.UnixEpoch);
+        Throws<InvalidOperationException>(() => adapter.ToSnapshot(request, result, retrieval, "SNAP-FAIL", DateTimeOffset.UnixEpoch));
+        Equal(KnowledgeRetrievalOutcome.Failed, retrieval.Outcome);
+        Equal("NORMALIZATION_FAILED", retrieval.ErrorCode);
     }
 
     private sealed class RegistryFixture : IDisposable

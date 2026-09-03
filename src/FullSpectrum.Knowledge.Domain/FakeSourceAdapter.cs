@@ -62,6 +62,15 @@ public sealed class SourceAdapterRegistry
         }
     }
 
+    public string ExportAuditJson() => System.Text.Json.JsonSerializer.Serialize(audit);
+    public static IReadOnlyList<AdapterAuditEvent> ReplayAuditJson(string json)
+    {
+        var items = System.Text.Json.JsonSerializer.Deserialize<List<AdapterAuditEvent>>(json)
+            ?? throw new InvalidOperationException("ADAPTER_AUDIT_CHAIN_INVALID");
+        VerifyAuditChain(items);
+        return items;
+    }
+
     private void AppendAudit(string eventType, string payload)
     {
         var previous = audit.LastOrDefault()?.EventDigest ?? string.Empty;
