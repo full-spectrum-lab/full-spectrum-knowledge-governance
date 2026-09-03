@@ -124,6 +124,8 @@ internal static class Program
         ,("team03 adapter registry rejects revoked adapters", Team03AdapterRegistryRevocation)
         ,("team03 network policy defaults to disabled", Team03NetworkPolicyDisabled)
         ,("team03 network policy enforces authorization scope and expiry", Team03NetworkPolicyAuthorization)
+        ,("team03 credentials use opaque handles and revoke cleanly", Team03CredentialIsolation)
+        ,("team03 credential redaction removes canary secrets", Team03CredentialRedaction)
     ];
 
     private static int Main()
@@ -1661,6 +1663,24 @@ internal static class Program
         Equal("AUTHORIZED", NetworkAccessPolicy.Evaluate(true, "SRC", "ADAPTER", auth, DateTimeOffset.UnixEpoch.AddMinutes(1)));
         Equal("AUTHORIZATION_MISSING", NetworkAccessPolicy.Evaluate(true, "OTHER", "ADAPTER", auth, DateTimeOffset.UnixEpoch.AddMinutes(1)));
         Equal("AUTHORIZATION_MISSING", NetworkAccessPolicy.Evaluate(true, "SRC", "ADAPTER", auth, DateTimeOffset.UnixEpoch.AddHours(2)));
+    }
+
+    private static void Team03CredentialIsolation()
+    {
+        var provider = new InMemoryCredentialProvider();
+        var handle = provider.Issue("AUTH-1", "SRC-1");
+        Equal("[CREDENTIAL_HANDLE]", handle.ToString());
+        True(provider.Resolve(handle).Contains("AUTH-1", StringComparison.Ordinal));
+        provider.Revoke(handle);
+        Throws<InvalidOperationException>(() => provider.Resolve(handle));
+    }
+
+    private static void Team03CredentialRedaction()
+    {
+        const string canary = "CANARY-SECRET-123";
+        var redacted = CredentialRedactor.Redact($"error token={canary}", [canary]);
+        True(!redacted.Contains(canary, StringComparison.Ordinal));
+        True(redacted.Contains("[REDACTED]", StringComparison.Ordinal));
     }
 
     private sealed class RegistryFixture : IDisposable
