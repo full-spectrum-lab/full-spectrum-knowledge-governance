@@ -38,6 +38,14 @@ public sealed class SourceAdapterRegistry
             : throw new InvalidOperationException("ADAPTER_NOT_REGISTERED");
     }
 
+    public FakeSourceAdapter Resolve(string adapterId, string version, KnowledgeSourceKind requiredKind)
+    {
+        var adapter = Resolve(adapterId, version);
+        if (!adapter.Describe().Capabilities.Contains(requiredKind))
+            throw new InvalidOperationException("ADAPTER_CAPABILITY_UNSUPPORTED");
+        return adapter;
+    }
+
     public void Revoke(string adapterId, string version)
     {
         var key = (adapterId, version);

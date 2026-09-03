@@ -122,6 +122,7 @@ internal static class Program
         ,("team03 adapter registry resolves exact versions", Team03AdapterRegistryExactVersion)
         ,("team03 adapter registry rejects identity conflicts", Team03AdapterRegistryIdentityConflict)
         ,("team03 adapter registry rejects revoked adapters", Team03AdapterRegistryRevocation)
+        ,("team03 adapter registry enforces declared capabilities", Team03AdapterCapability)
         ,("team03 adapter registry records an auditable chain", Team03AdapterRegistryAudit)
         ,("team03 adapter audit replay rejects tampering", Team03AdapterAuditReplay)
         ,("team03 adapter audit survives JSON replay", Team03AdapterAuditJsonReplay)
@@ -1666,6 +1667,14 @@ internal static class Program
         Throws<InvalidOperationException>(() => registry.Resolve("fake.adapter", "1.0.0"));
     }
 
+    private static void Team03AdapterCapability()
+    {
+        var registry = new SourceAdapterRegistry();
+        registry.Register(new FakeSourceAdapter("fake.adapter", "1.0.0", []));
+        Equal("fake.adapter", registry.Resolve("fake.adapter", "1.0.0", KnowledgeSourceKind.Manual).AdapterId);
+        Throws<InvalidOperationException>(() => registry.Resolve("fake.adapter", "1.0.0", KnowledgeSourceKind.Rss));
+    }
+
     private static void Team03AdapterRegistryAudit()
     {
         var registry = new SourceAdapterRegistry();
@@ -1731,7 +1740,7 @@ internal static class Program
 
     private static void Team03NetworkErrorCatalog()
     {
-        Equal(10, NetworkErrorCodes.All.Count);
+        Equal(11, NetworkErrorCodes.All.Count);
         True(NetworkErrorCodes.All.Contains(NetworkErrorCodes.NetworkDisabled));
         True(NetworkErrorCodes.All.Contains(NetworkErrorCodes.DigestMismatch));
         True(NetworkErrorCodes.All.All(x => x == x.ToUpperInvariant() && x.Contains('_', StringComparison.Ordinal)));

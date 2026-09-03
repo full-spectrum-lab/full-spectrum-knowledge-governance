@@ -14,12 +14,13 @@ public static class NetworkErrorCodes
     public const string RetryLimitExceeded = "RETRY_LIMIT_EXCEEDED";
     public const string NormalizationFailed = "NORMALIZATION_FAILED";
     public const string DigestMismatch = "DIGEST_MISMATCH";
+    public const string AdapterCapabilityUnsupported = "ADAPTER_CAPABILITY_UNSUPPORTED";
 
     public static IReadOnlySet<string> All { get; } = new HashSet<string>(StringComparer.Ordinal)
     {
         NetworkDisabled, AuthorizationMissing, SourceRevoked, AdapterNotRegistered,
         CredentialUnavailable, FetchTimeout, TlsValidationFailed, RetryLimitExceeded,
-        NormalizationFailed, DigestMismatch
+        NormalizationFailed, DigestMismatch, AdapterCapabilityUnsupported
     };
 }
 
