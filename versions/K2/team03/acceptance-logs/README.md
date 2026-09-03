@@ -22,3 +22,10 @@
 - [机器判定](./network-policy-reverify-20260903-112500.json)
 
 提交锚点：`ebfe8d8`。本机复验结果为 `112/112 PASS`；默认禁网、授权范围和授权过期策略均通过。
+
+## Credential Isolation 复验
+
+- [复验报告](./credential-isolation-reverify-20260903-114000.md)
+- [机器判定](./credential-isolation-reverify-20260903-114000.json)
+
+提交锚点：`d326bef`。本机复验结果为 `114/114 PASS`；不透明句柄、撤销和 canary 脱敏均通过。
