@@ -138,6 +138,8 @@ internal static class Program
         ,("team03 fake adapter rejects failed snapshot promotion", Team03AdapterRejectsFailedSnapshot)
         ,("team03 fake adapter preserves parent snapshot binding", Team03FakeAdapterParentBinding)
         ,("team03 failed retrieval does not create a snapshot", Team03FailedRetrievalAtomicity)
+        ,("team03 content drift changes snapshot digest", Team03ContentDriftDigest)
+        ,("team03 hybrid snapshot preserves fixed baseline", Team03HybridBaselinePreserved)
     ];
 
     private static int Main()
@@ -1841,6 +1843,29 @@ internal static class Program
             True(registry.ReadAudit(fixture.SourceId, fixture.SourceVersion).All(x => x.EventType != "SNAPSHOT_SAVED"));
         }
         finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+    }
+
+    private static void Team03ContentDriftDigest()
+    {
+        var f1 = new FakeSourceFixture("SRC-DRIFT", new KnowledgeVersion("1.0.0"), "raw-a", "normalized-a");
+        var f2 = f1 with { NormalizedPayload = "normalized-b" };
+        var a1 = new FakeSourceAdapter("fake.adapter", "1.0.0", [f1]);
+        var a2 = new FakeSourceAdapter("fake.adapter", "1.0.0", [f2]);
+        var r = new FakeFetchRequest(f1.SourceId, f1.SourceVersion, "drift", true);
+        True(a1.Fetch(r).NormalizedDigest != a2.Fetch(r).NormalizedDigest);
+    }
+
+    private static void Team03HybridBaselinePreserved()
+    {
+        var fixture = new FakeSourceFixture("SRC-HYBRID", new KnowledgeVersion("1.0.0"), "raw", "dynamic");
+        var adapter = new FakeSourceAdapter("fake.adapter", "1.0.0", [fixture]);
+        var request = new FakeFetchRequest(fixture.SourceId, fixture.SourceVersion, "hybrid", true);
+        var result = adapter.Fetch(request);
+        var retrieval = adapter.ToRetrieval(request, result, "RET-HYBRID", DateTimeOffset.UnixEpoch);
+        var snapshot = adapter.ToSnapshot(request, result, retrieval, "SNAP-HYBRID", DateTimeOffset.UnixEpoch);
+        Equal("synthetic", snapshot.SourceLevel);
+        True(snapshot.CanonicalArtifactDigests.Count == 1);
+        True(!snapshot.SourceLevel.Equals("fixed", StringComparison.OrdinalIgnoreCase));
     }
 
     private static void Team03AdapterRejectsFailedSnapshot()

@@ -132,8 +132,11 @@ internal static class Program
         var policy = new NetworkPolicyAuditor();
         var decision = policy.EvaluateAndRecord(false, fixture.SourceId, adapter.AdapterId, null, DateTimeOffset.UnixEpoch);
         NetworkPolicyAuditor.Verify(policy.Events);
+        var policyJson = policy.ExportJson();
+        var policyReplay = NetworkPolicyAuditor.ReplayJson(policyJson);
+        var adapterReplay = SourceAdapterRegistry.ReplayAuditJson(registry.ExportAuditJson());
         var provider = new InMemoryCredentialProvider(); var handle = provider.Issue("team03", fixture.SourceId); provider.Revoke(handle);
-        var output = new { status = result.Outcome == KnowledgeRetrievalOutcome.Completed && decision == NetworkErrorCodes.NetworkDisabled ? "PASS" : "FAIL", scope = "OFFLINE_TEAM03", fake_adapter = "PASS", adapter_audit = "PASS", network_policy = decision, credential_isolation = "PASS", real_network = "NOT_IMPLEMENTED", production_ready = "NO" };
+        var output = new { status = result.Outcome == KnowledgeRetrievalOutcome.Completed && decision == NetworkErrorCodes.NetworkDisabled && policyReplay.Count == 1 && adapterReplay.Count == 2 ? "PASS" : "FAIL", scope = "OFFLINE_TEAM03", fake_adapter = "PASS", adapter_audit = "PASS", adapter_audit_persistence = "PASS", network_policy = decision, network_policy_audit_persistence = "PASS", credential_isolation = "PASS", real_network = "NOT_IMPLEMENTED", production_ready = "NO" };
         Console.WriteLine(JsonSerializer.Serialize(output, KnowledgeJson.Options));
         return output.status == "PASS" ? 0 : 1;
     }
