@@ -53,6 +53,7 @@
 - [ ] 定义内存生命周期、最小权限和清理策略；
 - [ ] 增加日志、错误和重试路径的泄漏扫描测试；
 - [x] 第一阶段：不透明凭据句柄、撤销失效、canary 脱敏；证据：`acceptance-logs/credential-isolation-reverify-20260903-114000.md`。
+- [x] 受控回调使用边界（明文仅在 consumer 作用域内暴露）；证据：`acceptance-logs/credential-use-boundary-reverify-20260903-190000.md`。
 - [ ] 真实 provider 集成、全路径泄漏扫描和外部复审仍待完成。
 
 ## 关闭门槛

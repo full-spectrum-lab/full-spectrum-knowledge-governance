@@ -52,6 +52,13 @@
 
 提交锚点：`f199a41`。本机复验结果为 `130/130 PASS`；RSS/API/HTML 仅为离线协议模拟，不代表真实网络能力。
 
+## Credential Use Boundary 复验
+
+- [复验报告](./credential-use-boundary-reverify-20260903-190000.md)
+- [机器判定](./credential-use-boundary-reverify-20260903-190000.json)
+
+提交锚点：`538c6f4`。受控 `Use(handle, consumer)` 凭据使用边界复验为 `130/130 PASS`；真实凭据、真实网络和生产就绪仍未涉及。
+
 ## Team03 联合复验
 
 - [复验报告](./team03-joint-reverify-20260903-120900.md)
