@@ -63,6 +63,8 @@ public sealed class SourceAdapterRegistry
     }
 
     public string ExportAuditJson() => System.Text.Json.JsonSerializer.Serialize(audit);
+    public void SaveAudit(string path) => File.WriteAllText(path, ExportAuditJson());
+    public static IReadOnlyList<AdapterAuditEvent> LoadAudit(string path) => ReplayAuditJson(File.ReadAllText(path));
     public static IReadOnlyList<AdapterAuditEvent> ReplayAuditJson(string json)
     {
         var items = System.Text.Json.JsonSerializer.Deserialize<List<AdapterAuditEvent>>(json)

@@ -125,6 +125,7 @@ internal static class Program
         ,("team03 adapter registry records an auditable chain", Team03AdapterRegistryAudit)
         ,("team03 adapter audit replay rejects tampering", Team03AdapterAuditReplay)
         ,("team03 adapter audit survives JSON replay", Team03AdapterAuditJsonReplay)
+        ,("team03 adapter audit survives file persistence", Team03AdapterAuditFilePersistence)
         ,("team03 network policy defaults to disabled", Team03NetworkPolicyDisabled)
         ,("team03 network policy enforces authorization scope and expiry", Team03NetworkPolicyAuthorization)
         ,("team03 network error code catalog is stable", Team03NetworkErrorCatalog)
@@ -1693,6 +1694,23 @@ internal static class Program
         var replay = SourceAdapterRegistry.ReplayAuditJson(registry.ExportAuditJson());
         Equal(2, replay.Count);
         Equal("REVOKED", replay[1].EventType);
+    }
+
+    private static void Team03AdapterAuditFilePersistence()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"team03-audit-{Guid.NewGuid():N}.json");
+        try
+        {
+            var registry = new SourceAdapterRegistry();
+            registry.Register(new FakeSourceAdapter("fake.adapter", "1.0.0", []));
+            registry.Revoke("fake.adapter", "1.0.0");
+            registry.SaveAudit(path);
+            var loaded = SourceAdapterRegistry.LoadAudit(path);
+            Equal(2, loaded.Count);
+            Equal("REGISTERED", loaded[0].EventType);
+            Equal("REVOKED", loaded[1].EventType);
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
     }
 
     private static void Team03NetworkPolicyDisabled()
