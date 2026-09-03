@@ -129,6 +129,7 @@ internal static class Program
         ,("team03 network error code catalog is stable", Team03NetworkErrorCatalog)
         ,("team03 credentials use opaque handles and revoke cleanly", Team03CredentialIsolation)
         ,("team03 credential redaction removes canary secrets", Team03CredentialRedaction)
+        ,("team03 fake adapter negative matrix is fail closed", Team03FakeAdapterNegativeMatrix)
     ];
 
     private static int Main()
@@ -1715,6 +1716,25 @@ internal static class Program
         var redacted = CredentialRedactor.Redact($"error token={canary}", [canary]);
         True(!redacted.Contains(canary, StringComparison.Ordinal));
         True(redacted.Contains("[REDACTED]", StringComparison.Ordinal));
+    }
+
+    private static void Team03FakeAdapterNegativeMatrix()
+    {
+        var fixture = new FakeSourceFixture("SRC-NEG", new KnowledgeVersion("1.0.0"), "raw", "normalized");
+        foreach (var (mode, code) in new[]
+        {
+            (FakeFailureMode.Timeout, "FETCH_TIMEOUT"),
+            (FakeFailureMode.Normalization, "NORMALIZATION_FAILED"),
+            (FakeFailureMode.DigestMismatch, "DIGEST_MISMATCH"),
+            (FakeFailureMode.RetryLimit, "RETRY_LIMIT_EXCEEDED")
+        })
+        {
+            var adapter = new FakeSourceAdapter("fake.adapter", "1.0.0", [fixture], mode);
+            var result = adapter.Fetch(new FakeFetchRequest(fixture.SourceId, fixture.SourceVersion, "neg", true));
+            Equal(KnowledgeRetrievalOutcome.Failed, result.Outcome);
+            Equal(code, result.ErrorCode);
+            Equal(null, result.RawDigest);
+        }
     }
 
     private sealed class RegistryFixture : IDisposable
