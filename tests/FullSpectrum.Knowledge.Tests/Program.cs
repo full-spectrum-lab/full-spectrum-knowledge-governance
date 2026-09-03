@@ -127,6 +127,7 @@ internal static class Program
         ,("team03 network policy defaults to disabled", Team03NetworkPolicyDisabled)
         ,("team03 network policy enforces authorization scope and expiry", Team03NetworkPolicyAuthorization)
         ,("team03 network error code catalog is stable", Team03NetworkErrorCatalog)
+        ,("team03 network policy decisions are auditable", Team03NetworkPolicyAudit)
         ,("team03 credentials use opaque handles and revoke cleanly", Team03CredentialIsolation)
         ,("team03 credential redaction removes canary secrets", Team03CredentialRedaction)
         ,("team03 fake adapter negative matrix is fail closed", Team03FakeAdapterNegativeMatrix)
@@ -1698,6 +1699,18 @@ internal static class Program
         True(NetworkErrorCodes.All.Contains(NetworkErrorCodes.NetworkDisabled));
         True(NetworkErrorCodes.All.Contains(NetworkErrorCodes.DigestMismatch));
         True(NetworkErrorCodes.All.All(x => x == x.ToUpperInvariant() && x.Contains('_', StringComparison.Ordinal)));
+    }
+
+    private static void Team03NetworkPolicyAudit()
+    {
+        var auditor = new NetworkPolicyAuditor();
+        var auth = new NetworkAuthorization("AUTH", new HashSet<string>(["SRC"]), new HashSet<string>(["ADAPTER"]), DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch.AddHours(1));
+        Equal("NETWORK_DISABLED", auditor.EvaluateAndRecord(false, "SRC", "ADAPTER", auth, DateTimeOffset.UnixEpoch));
+        Equal("AUTHORIZED", auditor.EvaluateAndRecord(true, "SRC", "ADAPTER", auth, DateTimeOffset.UnixEpoch.AddMinutes(1)));
+        NetworkPolicyAuditor.Verify(auditor.Events);
+        var tampered = auditor.Events.ToArray();
+        tampered[1] = tampered[1] with { Decision = "NETWORK_DISABLED" };
+        Throws<InvalidOperationException>(() => NetworkPolicyAuditor.Verify(tampered));
     }
 
     private static void Team03CredentialIsolation()

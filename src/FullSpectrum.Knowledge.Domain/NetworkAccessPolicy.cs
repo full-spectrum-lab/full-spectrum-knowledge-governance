@@ -28,6 +28,38 @@ public sealed record NetworkAuthorization(
     DateTimeOffset IssuedAtUtc,
     DateTimeOffset ExpiresAtUtc);
 
+public sealed record NetworkPolicyAuditEvent(long Sequence, string SourceId, string AdapterId, string AuthorityId, string Decision, DateTimeOffset AtUtc, string PreviousDigest, string EventDigest);
+
+public sealed class NetworkPolicyAuditor
+{
+    private readonly List<NetworkPolicyAuditEvent> events = [];
+    public IReadOnlyList<NetworkPolicyAuditEvent> Events => events;
+
+    public string EvaluateAndRecord(bool globalEnabled, string sourceId, string adapterId, NetworkAuthorization? authorization, DateTimeOffset nowUtc)
+    {
+        var decision = NetworkAccessPolicy.Evaluate(globalEnabled, sourceId, adapterId, authorization, nowUtc);
+        var authority = authorization?.AuthorityId ?? string.Empty;
+        var previous = events.LastOrDefault()?.EventDigest ?? string.Empty;
+        var payload = $"{sourceId}|{adapterId}|{authority}|{decision}|{nowUtc:O}|{previous}";
+        var digest = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(payload)));
+        events.Add(new NetworkPolicyAuditEvent(events.Count + 1, sourceId, adapterId, authority, decision, nowUtc, previous, digest));
+        return decision;
+    }
+
+    public static void Verify(IEnumerable<NetworkPolicyAuditEvent> source)
+    {
+        var previous = string.Empty; long sequence = 1;
+        foreach (var item in source)
+        {
+            if (item.Sequence != sequence || item.PreviousDigest != previous) throw new InvalidOperationException("NETWORK_POLICY_AUDIT_INVALID");
+            var payload = $"{item.SourceId}|{item.AdapterId}|{item.AuthorityId}|{item.Decision}|{item.AtUtc:O}|{item.PreviousDigest}";
+            var expected = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(payload)));
+            if (item.EventDigest != expected) throw new InvalidOperationException("NETWORK_POLICY_AUDIT_INVALID");
+            previous = item.EventDigest; sequence++;
+        }
+    }
+}
+
 public static class NetworkAccessPolicy
 {
     public static string Evaluate(bool globalEnabled, string sourceId, string adapterId,
