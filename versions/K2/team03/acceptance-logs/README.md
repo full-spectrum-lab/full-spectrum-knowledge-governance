@@ -30,6 +30,14 @@
 
 提交锚点：`d326bef`。本机复验结果为 `114/114 PASS`；不透明句柄、撤销和 canary 脱敏均通过。
 
+## Team03 Unified 复验
+
+- [复验报告](./team03-unified-reverify-20260903-123600.md)
+- [机器判定](./team03-unified-reverify-20260903-123600.json)
+
+提交锚点：`2a0a0a5`。本机统一复验结果为 `124/124 PASS`，`verify-team03=PASS`。
+该结果仅覆盖离线实现，不代表真实网络、独立第二主机或生产就绪。
+
 ## Team03 联合复验
 
 - [复验报告](./team03-joint-reverify-20260903-120900.md)

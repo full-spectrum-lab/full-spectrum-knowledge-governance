@@ -1,0 +1,39 @@
+{
+  "commit": "2a0a0a5",
+  "locked_restore": "PASS",
+  "release_build": "PASS",
+  "full_regression": "124/124 PASS",
+  "verify_k2": "PASS",
+  "verify_team03": "PASS",
+  "verify_team03_scope": "OFFLINE_TEAM03",
+  "fake_adapter": "PASS",
+  "adapter_audit": "PASS",
+  "network_policy": "NETWORK_DISABLED",
+  "credential_isolation": "PASS",
+  "real_network": "NOT_IMPLEMENTED",
+  "real_credentials": "NOT_READ",
+  "packages_lock_diff": "CLEAN",
+  "independent_second_host": "NOT_EXECUTED",
+  "production_ready": "NO",
+  "final_verdict": {
+    "TEAM03_UNIFIED_LOCAL_REVERIFY": "PASS",
+    "B1": "PARTIALLY_CLOSED",
+    "H1": "PARTIALLY_CLOSED",
+    "H2": "PARTIALLY_CLOSED",
+    "H3": "PARTIALLY_CLOSED",
+    "H4": "PARTIALLY_CLOSED",
+    "REAL_NETWORK_ADAPTER": "NOT_IMPLEMENTED",
+    "PRODUCTION_READY": "NO"
+  },
+  "discipline": {
+    "real_network_requests": "NONE",
+    "real_credentials": "NOT_READ",
+    "independent_second_host_verify": "NOT_EXECUTED",
+    "production_ready": "NO",
+    "offline_not_equated_with_real_network": true,
+    "local_reverify_not_equated_with_second_host": true
+  },
+  "sdk_version": "10.0.301",
+  "reverifier": "WorkBuddy (local, single host, read-only)",
+  "timestamp": "20260903-123600"
+}
