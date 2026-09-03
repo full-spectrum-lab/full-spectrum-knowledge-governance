@@ -124,6 +124,7 @@ internal static class Program
         ,("team03 adapter registry rejects revoked adapters", Team03AdapterRegistryRevocation)
         ,("team03 network policy defaults to disabled", Team03NetworkPolicyDisabled)
         ,("team03 network policy enforces authorization scope and expiry", Team03NetworkPolicyAuthorization)
+        ,("team03 network error code catalog is stable", Team03NetworkErrorCatalog)
         ,("team03 credentials use opaque handles and revoke cleanly", Team03CredentialIsolation)
         ,("team03 credential redaction removes canary secrets", Team03CredentialRedaction)
     ];
@@ -1663,6 +1664,14 @@ internal static class Program
         Equal("AUTHORIZED", NetworkAccessPolicy.Evaluate(true, "SRC", "ADAPTER", auth, DateTimeOffset.UnixEpoch.AddMinutes(1)));
         Equal("AUTHORIZATION_MISSING", NetworkAccessPolicy.Evaluate(true, "OTHER", "ADAPTER", auth, DateTimeOffset.UnixEpoch.AddMinutes(1)));
         Equal("AUTHORIZATION_MISSING", NetworkAccessPolicy.Evaluate(true, "SRC", "ADAPTER", auth, DateTimeOffset.UnixEpoch.AddHours(2)));
+    }
+
+    private static void Team03NetworkErrorCatalog()
+    {
+        Equal(10, NetworkErrorCodes.All.Count);
+        True(NetworkErrorCodes.All.Contains(NetworkErrorCodes.NetworkDisabled));
+        True(NetworkErrorCodes.All.Contains(NetworkErrorCodes.DigestMismatch));
+        True(NetworkErrorCodes.All.All(x => x == x.ToUpperInvariant() && x.Contains('_', StringComparison.Ordinal)));
     }
 
     private static void Team03CredentialIsolation()
