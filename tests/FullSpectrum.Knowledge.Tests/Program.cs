@@ -137,6 +137,7 @@ internal static class Program
         ,("team03 credentials use opaque handles and revoke cleanly", Team03CredentialIsolation)
         ,("team03 credential redaction removes canary secrets", Team03CredentialRedaction)
         ,("team03 credential canary stays redacted across failure and persistence paths", Team03CredentialCanaryLifecycle)
+        ,("team03 credential provider secret flows through controlled lifecycle", Team03CredentialProviderSecretFlow)
         ,("team03 fake adapter negative matrix is fail closed", Team03FakeAdapterNegativeMatrix)
         ,("team03 fake adapter rejects failed snapshot promotion", Team03AdapterRejectsFailedSnapshot)
         ,("team03 fake adapter preserves parent snapshot binding", Team03FakeAdapterParentBinding)
@@ -1844,6 +1845,27 @@ internal static class Program
         True(outputs.Count >= 4);
         True(outputs.All(value => !value.Contains(canary, StringComparison.Ordinal)));
         True(outputs.All(value => value.Contains("[REDACTED]", StringComparison.Ordinal)));
+        provider.Revoke(handle);
+        Throws<InvalidOperationException>(() => provider.Use(handle, _ => "must-not-run"));
+    }
+
+    private static void Team03CredentialProviderSecretFlow()
+    {
+        const string canary = "CANARY-PROVIDER-FLOW-SECRET";
+        var provider = new InMemoryCredentialProvider();
+        var handle = provider.Issue("AUTH-FLOW", "SRC-FLOW", canary);
+        var artifacts = new List<string>();
+        provider.Use(handle, secret =>
+        {
+            artifacts.Add(CredentialRedactor.Redact($"exception token={secret}", [secret]));
+            artifacts.Add(CredentialRedactor.Redact($"retry token={secret}", [secret]));
+            artifacts.Add(CredentialRedactor.Redact(JsonSerializer.Serialize(new { snapshot = secret, audit = secret }), [secret]));
+            artifacts.Add(CredentialRedactor.Redact($"export/replay token={secret}", [secret]));
+            return true;
+        });
+        True(artifacts.Count == 4);
+        True(artifacts.All(x => !x.Contains(canary, StringComparison.Ordinal)));
+        True(artifacts.All(x => x.Contains("[REDACTED]", StringComparison.Ordinal)));
         provider.Revoke(handle);
         Throws<InvalidOperationException>(() => provider.Use(handle, _ => "must-not-run"));
     }

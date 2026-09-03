@@ -66,6 +66,13 @@
 
 提交锚点：`a9f7d27`。异常、重试、Snapshot/Audit JSON 与 export/replay 离线 canary 扫描为 `131/131 PASS`；H4 仍保持 `PARTIALLY_CLOSED`。
 
+## Credential Provider Secret Flow 复验
+
+- [复验报告](./credential-provider-secret-flow-reverify-20260903-210000.md)
+- [机器判定](./credential-provider-secret-flow-reverify-20260903-210000.json)
+
+提交锚点：`a9f7d27`。Fake Provider 注入真实 canary 后经 `Use()` consumer 流入生命周期输出，`132/132 PASS`；真实 provider、过期/轮换和内存零化仍未证明。
+
 ## Team03 联合复验
 
 - [复验报告](./team03-joint-reverify-20260903-120900.md)

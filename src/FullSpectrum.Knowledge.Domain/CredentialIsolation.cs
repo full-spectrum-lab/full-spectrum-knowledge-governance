@@ -17,10 +17,14 @@ public sealed class InMemoryCredentialProvider : ICredentialProvider
     private readonly Dictionary<string, string> values = [];
 
     public CredentialHandle Issue(string authorityId, string scope)
+        => Issue(authorityId, scope, $"{authorityId}:{scope}");
+
+    public CredentialHandle Issue(string authorityId, string scope, string secret)
     {
         if (string.IsNullOrWhiteSpace(authorityId) || string.IsNullOrWhiteSpace(scope)) throw new ArgumentException("Credential scope is required.");
+        if (string.IsNullOrEmpty(secret)) throw new ArgumentException("Credential secret is required.");
         var handle = new CredentialHandle($"cred-{Guid.NewGuid():N}");
-        values.Add(handle.Id, $"{authorityId}:{scope}");
+        values.Add(handle.Id, secret);
         return handle;
     }
 
