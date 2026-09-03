@@ -135,6 +135,7 @@ internal static class Program
         ,("team03 fake adapter negative matrix is fail closed", Team03FakeAdapterNegativeMatrix)
         ,("team03 fake adapter rejects failed snapshot promotion", Team03AdapterRejectsFailedSnapshot)
         ,("team03 fake adapter preserves parent snapshot binding", Team03FakeAdapterParentBinding)
+        ,("team03 failed retrieval does not create a snapshot", Team03FailedRetrievalAtomicity)
     ];
 
     private static int Main()
@@ -1787,6 +1788,23 @@ internal static class Program
             var req2 = new FakeFetchRequest(fixture.SourceId, fixture.SourceVersion, "p2", true); var res2 = adapter.Fetch(req2); var ret2 = adapter.ToRetrieval(req2, res2, "RET-P2", DateTimeOffset.UnixEpoch); var s2 = adapter.ToSnapshot(req2, res2, ret2, "SNAP-P2", DateTimeOffset.UnixEpoch.AddMinutes(1), s1.SnapshotId);
             using var registry = new ControlledSourceRegistry(Path.Combine(root, "db.sqlite3")); registry.Register(registration); registry.RecordRetrieval(ret1); registry.SaveSnapshot(s1); registry.RecordRetrieval(ret2); registry.SaveSnapshot(s2);
             Equal(s1.SnapshotId, registry.GetSnapshot(s2.SnapshotId)!.ParentSnapshotId);
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+    }
+
+    private static void Team03FailedRetrievalAtomicity()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"fskg-failed-{Guid.NewGuid():N}"); Directory.CreateDirectory(root);
+        try
+        {
+            var fixture = new FakeSourceFixture("SRC-FAIL", new KnowledgeVersion("1.0.0"), "raw", "normalized");
+            var adapter = new FakeSourceAdapter("fake.adapter", "1.0.0", [fixture], FakeFailureMode.Timeout);
+            var registration = new KnowledgeSourceRegistration(fixture.SourceId, fixture.SourceVersion, "synthetic", KnowledgeSourceKind.Manual, "terms://x", "policy://x", adapter.AdapterId, adapter.Version, ["example.invalid"], KnowledgeSourceLifecycleState.Active, DateTimeOffset.UnixEpoch, DigestRef.Sha256("r"));
+            var request = new FakeFetchRequest(fixture.SourceId, fixture.SourceVersion, "atomic", true); var result = adapter.Fetch(request); var retrieval = adapter.ToRetrieval(request, result, "RET-FAIL-ATOMIC", DateTimeOffset.UnixEpoch);
+            using var registry = new ControlledSourceRegistry(Path.Combine(root, "db.sqlite3")); registry.Register(registration); registry.RecordRetrieval(retrieval);
+            Equal(KnowledgeRetrievalOutcome.Failed, registry.GetRetrieval(retrieval.RetrievalId)!.Outcome);
+            Equal(null, registry.GetSnapshot("SNAP-FAIL-ATOMIC"));
+            True(registry.ReadAudit(fixture.SourceId, fixture.SourceVersion).All(x => x.EventType != "SNAPSHOT_SAVED"));
         }
         finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
     }
