@@ -1,0 +1,84 @@
+{
+  "report_type": "team03_readonly_joint_reverify",
+  "focus": "adapter_capability_declaration_policy",
+  "commit": "5cd0f99",
+  "commit_full": "5cd0f99311b5c3f060028bf664a3bf715e5be600",
+  "reverify_time": "2026-09-03T15:30:00+08:00",
+  "repository": "C:\\Users\\wangjian0926\\Desktop\\codex专属仓库\\_public_narrative_batch_b2\\full-spectrum-knowledge-governance",
+  "sdk_version": "10.0.301",
+  "discipline": {
+    "read_only": true,
+    "no_source_wiki_remote_modification": true,
+    "untracked_files_preserved": true,
+    "no_real_network": true,
+    "no_real_credentials": true,
+    "not_independent_second_host": true,
+    "not_production_ready": true,
+    "no_stale_dll_substitution": true
+  },
+  "gate": {
+    "locked_restore": "PASS",
+    "release_build": "PASS",
+    "full_regression": "129/129 PASS",
+    "verify_k2": "PASS",
+    "verify_team03": "PASS",
+    "packages_lock_diff": "CLEAN"
+  },
+  "verify_k2": {
+    "status": "PASS",
+    "scope": "OFFLINE_K2_CONTRACT_AND_PERSISTENCE",
+    "checks": {
+      "lifecycle": "PASS",
+      "retrieval_snapshot_binding": "PASS",
+      "audit_replay": "PASS",
+      "audit_events": 4,
+      "network_access": "NOT_EXECUTED_BY_DESIGN",
+      "fixed_promotion": "NOT_IMPLEMENTED"
+    }
+  },
+  "verify_team03": {
+    "status": "PASS",
+    "scope": "OFFLINE_TEAM03",
+    "fake_adapter": "PASS",
+    "adapter_audit": "PASS",
+    "adapter_audit_persistence": "PASS",
+    "network_policy": "NETWORK_DISABLED",
+    "network_policy_audit_persistence": "PASS",
+    "credential_isolation": "PASS",
+    "real_network": "NOT_IMPLEMENTED",
+    "production_ready": "NO"
+  },
+  "capability_policy": {
+    "adapter_capability_check": "PASS",
+    "declared_manual_plus_manual_request": "PASS",
+    "undeclared_capability_request": "ADAPTER_CAPABILITY_UNSUPPORTED",
+    "unknown_adapter_or_version": "ADAPTER_NOT_REGISTERED",
+    "revoked_adapter": "ADAPTER_REVOKED"
+  },
+  "adapter_audit": "PASS",
+  "adapter_audit_persistence": "PASS",
+  "network_policy": "NETWORK_DISABLED",
+  "network_policy_audit_persistence": "PASS",
+  "credential_isolation": "PASS",
+  "credential_redaction": "PASS",
+  "regression": {
+    "team02_baseline": "PASS",
+    "team03_tests": "26/26 PASS",
+    "new_test": "team03 adapter registry enforces declared capabilities"
+  },
+  "real_network_requests": "NONE",
+  "real_credentials": "NOT_READ",
+  "packages_lock_diff": "CLEAN",
+  "independent_second_host": "NOT_EXECUTED",
+  "production_ready": "NO",
+  "final_verdict": {
+    "TEAM03_CAPABILITY_POLICY_REVERIFY": "PASS",
+    "B1": "PARTIALLY_CLOSED",
+    "H1": "PARTIALLY_CLOSED",
+    "H2": "PARTIALLY_CLOSED",
+    "H3": "PARTIALLY_CLOSED",
+    "H4": "PARTIALLY_CLOSED",
+    "REAL_NETWORK_ADAPTER": "NOT_IMPLEMENTED",
+    "PRODUCTION_READY": "NO"
+  }
+}

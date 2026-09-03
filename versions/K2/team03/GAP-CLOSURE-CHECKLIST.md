@@ -2,7 +2,7 @@
 
 状态：`OPEN / IMPLEMENTATION BLOCKED UNTIL CLOSED`
 
-设计补充状态（2026-09-03）：B1、H1、H2、H3、H4 的文档契约已补充；`8c61586` 离线治理复验为 `128/128 PASS`、`verify-team03=PASS`，审计持久化与 H3 边界测试均有证据。完整契约闭环、真实网络适配器和独立第二主机证据仍未完成，清单整体保持 `OPEN`。
+设计补充状态（2026-09-03）：B1、H1、H2、H3、H4 的文档契约已补充；`5cd0f99` capability-policy 复验为 `129/129 PASS`，适配器能力声明校验已有本机证据。完整契约闭环、真实网络适配器和独立第二主机证据仍未完成，清单整体保持 `OPEN`。
 
 本清单依据 2026-09-02 两份外部独立设计评审报告建立。team03 在全部必修项关闭并完成复审前，不得实现真实网络适配器、连接生产环境或改变 team02 冻结边界。
 
@@ -24,6 +24,7 @@
 - [ ] 定义 adapter_id/source_id/parser_version 的身份校验；
 - [ ] 增加接口兼容性与非法 descriptor 负面测试；
 - [x] 第一阶段：精确版本解析、身份冲突拒绝、撤销拒绝；证据：`acceptance-logs/adapter-registry-reverify-20260902-160500.md`。
+- [x] 能力声明校验与未声明协议拒绝；证据：`acceptance-logs/capability-policy-reverify-20260903-153000.md`。
 - [ ] 完整版本兼容策略、持久化注册审计和外部复审仍待完成。
 
 ### H2：网络开关、授权和错误码

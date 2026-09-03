@@ -38,6 +38,13 @@
 提交锚点：`2a0a0a5`。本机统一复验结果为 `124/124 PASS`，`verify-team03=PASS`。
 该结果仅覆盖离线实现，不代表真实网络、独立第二主机或生产就绪。
 
+## Capability Policy 复验
+
+- [复验报告](./capability-policy-reverify-20260903-153000.md)
+- [机器判定](./capability-policy-reverify-20260903-153000.json)
+
+提交锚点：`5cd0f99`。本机复验结果为 `129/129 PASS`；适配器能力声明校验通过。
+
 ## Team03 联合复验
 
 - [复验报告](./team03-joint-reverify-20260903-120900.md)
