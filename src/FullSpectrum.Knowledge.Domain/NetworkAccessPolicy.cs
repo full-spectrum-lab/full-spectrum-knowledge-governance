@@ -1,5 +1,7 @@
 namespace FullSpectrum.Knowledge.Domain;
 
+using System.Text.Json;
+
 public static class NetworkErrorCodes
 {
     public const string NetworkDisabled = "NETWORK_DISABLED";
@@ -57,6 +59,16 @@ public sealed class NetworkPolicyAuditor
             if (item.EventDigest != expected) throw new InvalidOperationException("NETWORK_POLICY_AUDIT_INVALID");
             previous = item.EventDigest; sequence++;
         }
+    }
+
+    public string ExportJson() => JsonSerializer.Serialize(events);
+
+    public static IReadOnlyList<NetworkPolicyAuditEvent> ReplayJson(string json)
+    {
+        var items = JsonSerializer.Deserialize<List<NetworkPolicyAuditEvent>>(json)
+            ?? throw new InvalidOperationException("NETWORK_POLICY_AUDIT_INVALID");
+        Verify(items);
+        return items;
     }
 }
 

@@ -128,6 +128,7 @@ internal static class Program
         ,("team03 network policy enforces authorization scope and expiry", Team03NetworkPolicyAuthorization)
         ,("team03 network error code catalog is stable", Team03NetworkErrorCatalog)
         ,("team03 network policy decisions are auditable", Team03NetworkPolicyAudit)
+        ,("team03 network policy audit survives JSON replay", Team03NetworkPolicyReplay)
         ,("team03 credentials use opaque handles and revoke cleanly", Team03CredentialIsolation)
         ,("team03 credential redaction removes canary secrets", Team03CredentialRedaction)
         ,("team03 fake adapter negative matrix is fail closed", Team03FakeAdapterNegativeMatrix)
@@ -1711,6 +1712,17 @@ internal static class Program
         var tampered = auditor.Events.ToArray();
         tampered[1] = tampered[1] with { Decision = "NETWORK_DISABLED" };
         Throws<InvalidOperationException>(() => NetworkPolicyAuditor.Verify(tampered));
+    }
+
+    private static void Team03NetworkPolicyReplay()
+    {
+        var auditor = new NetworkPolicyAuditor();
+        auditor.EvaluateAndRecord(false, "SRC", "ADAPTER", null, DateTimeOffset.UnixEpoch);
+        var replayed = NetworkPolicyAuditor.ReplayJson(auditor.ExportJson());
+        Equal(1, replayed.Count);
+        Equal("NETWORK_DISABLED", replayed[0].Decision);
+        var tampered = auditor.ExportJson().Replace("NETWORK_DISABLED", "AUTHORIZED", StringComparison.Ordinal);
+        Throws<InvalidOperationException>(() => NetworkPolicyAuditor.ReplayJson(tampered));
     }
 
     private static void Team03CredentialIsolation()
