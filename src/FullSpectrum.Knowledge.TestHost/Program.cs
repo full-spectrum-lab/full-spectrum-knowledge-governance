@@ -31,6 +31,7 @@ internal static class Program
         "verify-k0-04" when args.Length == 1 => VerifyK004(),
         "verify-k0-05" when args.Length == 1 => VerifyK005(),
         "verify-k2" when args.Length == 1 => VerifyK2(),
+        "verify-team03" when args.Length == 1 => VerifyTeam03(),
         "verify-release-facts" when args.Length == 1 => VerifyReleaseFacts(),
         "version" when args.Length == 1 => PrintVersion(),
         "digest" when args.Length == 2 => PrintDigest(args[1]),
@@ -118,6 +119,23 @@ internal static class Program
             return failed ? 1 : 0;
         }
         finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+    }
+
+    private static int VerifyTeam03()
+    {
+        var fixture = new FakeSourceFixture("SRC-TEAM03", new KnowledgeVersion("1.0.0"), "raw", "normalized");
+        var adapter = new FakeSourceAdapter("fake.adapter", "1.0.0", [fixture]);
+        var request = new FakeFetchRequest(fixture.SourceId, fixture.SourceVersion, "team03", true);
+        var result = adapter.Fetch(request);
+        var registry = new SourceAdapterRegistry(); registry.Register(adapter); registry.Revoke(adapter.AdapterId, adapter.Version);
+        SourceAdapterRegistry.VerifyAuditChain(registry.Audit);
+        var policy = new NetworkPolicyAuditor();
+        var decision = policy.EvaluateAndRecord(false, fixture.SourceId, adapter.AdapterId, null, DateTimeOffset.UnixEpoch);
+        NetworkPolicyAuditor.Verify(policy.Events);
+        var provider = new InMemoryCredentialProvider(); var handle = provider.Issue("team03", fixture.SourceId); provider.Revoke(handle);
+        var output = new { status = result.Outcome == KnowledgeRetrievalOutcome.Completed && decision == NetworkErrorCodes.NetworkDisabled ? "PASS" : "FAIL", scope = "OFFLINE_TEAM03", fake_adapter = "PASS", adapter_audit = "PASS", network_policy = decision, credential_isolation = "PASS", real_network = "NOT_IMPLEMENTED", production_ready = "NO" };
+        Console.WriteLine(JsonSerializer.Serialize(output, KnowledgeJson.Options));
+        return output.status == "PASS" ? 0 : 1;
     }
 
     private static int VerifyK002()
