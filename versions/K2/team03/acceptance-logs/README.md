@@ -45,6 +45,13 @@
 
 提交锚点：`5cd0f99`。本机复验结果为 `129/129 PASS`；适配器能力声明校验通过。
 
+## Offline Protocol Simulation 复验
+
+- [复验报告](./offline-protocol-simulation-reverify-20260903-183500.md)
+- [机器判定](./offline-protocol-simulation-reverify-20260903-183500.json)
+
+提交锚点：`f199a41`。本机复验结果为 `130/130 PASS`；RSS/API/HTML 仅为离线协议模拟，不代表真实网络能力。
+
 ## Team03 联合复验
 
 - [复验报告](./team03-joint-reverify-20260903-120900.md)
