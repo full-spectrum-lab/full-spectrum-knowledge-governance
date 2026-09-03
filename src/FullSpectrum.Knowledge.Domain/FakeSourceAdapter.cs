@@ -96,18 +96,20 @@ public sealed class FakeSourceAdapter
 {
     private readonly IReadOnlyDictionary<(string SourceId, string Version), FakeSourceFixture> _fixtures;
 
-    public FakeSourceAdapter(string adapterId, string version, IEnumerable<FakeSourceFixture> fixtures, FakeFailureMode failureMode = FakeFailureMode.None)
+    public FakeSourceAdapter(string adapterId, string version, IEnumerable<FakeSourceFixture> fixtures, FakeFailureMode failureMode = FakeFailureMode.None, KnowledgeSourceKind capability = KnowledgeSourceKind.Manual)
     {
         if (string.IsNullOrWhiteSpace(adapterId) || string.IsNullOrWhiteSpace(version)) throw new ArgumentException("Adapter identity is required.");
         AdapterId = adapterId; Version = version;
         _fixtures = fixtures.ToDictionary(x => (x.SourceId, x.SourceVersion.Value), x => x);
         FailureMode = failureMode;
+        Capability = capability;
     }
 
     public string AdapterId { get; }
     public string Version { get; }
     public FakeFailureMode FailureMode { get; }
-    public SourceAdapterDescriptor Describe() => new(AdapterId, Version, [KnowledgeSourceKind.Manual]);
+    public KnowledgeSourceKind Capability { get; }
+    public SourceAdapterDescriptor Describe() => new(AdapterId, Version, [Capability]);
 
     public FakeFetchResult Fetch(FakeFetchRequest request)
     {

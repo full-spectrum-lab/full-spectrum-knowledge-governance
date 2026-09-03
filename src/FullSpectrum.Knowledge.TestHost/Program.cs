@@ -136,7 +136,8 @@ internal static class Program
         var policyReplay = NetworkPolicyAuditor.ReplayJson(policyJson);
         var adapterReplay = SourceAdapterRegistry.ReplayAuditJson(registry.ExportAuditJson());
         var provider = new InMemoryCredentialProvider(); var handle = provider.Issue("team03", fixture.SourceId); provider.Revoke(handle);
-        var output = new { status = result.Outcome == KnowledgeRetrievalOutcome.Completed && decision == NetworkErrorCodes.NetworkDisabled && policyReplay.Count == 1 && adapterReplay.Count == 2 ? "PASS" : "FAIL", scope = "OFFLINE_TEAM03", fake_adapter = "PASS", adapter_audit = "PASS", adapter_audit_persistence = "PASS", network_policy = decision, network_policy_audit_persistence = "PASS", credential_isolation = "PASS", real_network = "NOT_IMPLEMENTED", production_ready = "NO" };
+        var protocolSimulation = new[] { KnowledgeSourceKind.Rss, KnowledgeSourceKind.Api, KnowledgeSourceKind.Html }.All(kind => new FakeSourceAdapter("fake." + kind, "1.0.0", [], FakeFailureMode.None, kind).Describe().Capabilities.Contains(kind));
+        var output = new { status = result.Outcome == KnowledgeRetrievalOutcome.Completed && decision == NetworkErrorCodes.NetworkDisabled && policyReplay.Count == 1 && adapterReplay.Count == 2 && protocolSimulation ? "PASS" : "FAIL", scope = "OFFLINE_TEAM03", fake_adapter = "PASS", offline_protocol_simulation = protocolSimulation ? "PASS" : "FAIL", adapter_audit = "PASS", adapter_audit_persistence = "PASS", network_policy = decision, network_policy_audit_persistence = "PASS", credential_isolation = "PASS", real_network = "NOT_IMPLEMENTED", production_ready = "NO" };
         Console.WriteLine(JsonSerializer.Serialize(output, KnowledgeJson.Options));
         return output.status == "PASS" ? 0 : 1;
     }

@@ -123,6 +123,7 @@ internal static class Program
         ,("team03 adapter registry rejects identity conflicts", Team03AdapterRegistryIdentityConflict)
         ,("team03 adapter registry rejects revoked adapters", Team03AdapterRegistryRevocation)
         ,("team03 adapter registry enforces declared capabilities", Team03AdapterCapability)
+        ,("team03 offline protocol adapters cover rss api and html", Team03OfflineProtocolAdapters)
         ,("team03 adapter registry records an auditable chain", Team03AdapterRegistryAudit)
         ,("team03 adapter audit replay rejects tampering", Team03AdapterAuditReplay)
         ,("team03 adapter audit survives JSON replay", Team03AdapterAuditJsonReplay)
@@ -1673,6 +1674,18 @@ internal static class Program
         registry.Register(new FakeSourceAdapter("fake.adapter", "1.0.0", []));
         Equal("fake.adapter", registry.Resolve("fake.adapter", "1.0.0", KnowledgeSourceKind.Manual).AdapterId);
         Throws<InvalidOperationException>(() => registry.Resolve("fake.adapter", "1.0.0", KnowledgeSourceKind.Rss));
+    }
+
+    private static void Team03OfflineProtocolAdapters()
+    {
+        foreach (var kind in new[] { KnowledgeSourceKind.Rss, KnowledgeSourceKind.Api, KnowledgeSourceKind.Html })
+        {
+            var fixture = new FakeSourceFixture("SRC-" + kind, new KnowledgeVersion("1.0.0"), "raw", "normalized");
+            var adapter = new FakeSourceAdapter("fake." + kind, "1.0.0", [fixture], FakeFailureMode.None, kind);
+            var registry = new SourceAdapterRegistry(); registry.Register(adapter);
+            Equal(adapter.AdapterId, registry.Resolve(adapter.AdapterId, adapter.Version, kind).AdapterId);
+            Throws<InvalidOperationException>(() => registry.Resolve(adapter.AdapterId, adapter.Version, KnowledgeSourceKind.Search));
+        }
     }
 
     private static void Team03AdapterRegistryAudit()
