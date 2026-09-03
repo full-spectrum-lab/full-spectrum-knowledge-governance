@@ -122,6 +122,8 @@ internal static class Program
         ,("team03 adapter registry resolves exact versions", Team03AdapterRegistryExactVersion)
         ,("team03 adapter registry rejects identity conflicts", Team03AdapterRegistryIdentityConflict)
         ,("team03 adapter registry rejects revoked adapters", Team03AdapterRegistryRevocation)
+        ,("team03 network policy defaults to disabled", Team03NetworkPolicyDisabled)
+        ,("team03 network policy enforces authorization scope and expiry", Team03NetworkPolicyAuthorization)
     ];
 
     private static int Main()
@@ -1646,6 +1648,19 @@ internal static class Program
         registry.Register(new FakeSourceAdapter("fake.adapter", "1.0.0", []));
         registry.Revoke("fake.adapter", "1.0.0");
         Throws<InvalidOperationException>(() => registry.Resolve("fake.adapter", "1.0.0"));
+    }
+
+    private static void Team03NetworkPolicyDisabled()
+    {
+        Equal("NETWORK_DISABLED", NetworkAccessPolicy.Evaluate(false, "SRC", "ADAPTER", null, DateTimeOffset.UnixEpoch));
+    }
+
+    private static void Team03NetworkPolicyAuthorization()
+    {
+        var auth = new NetworkAuthorization("AUTH-1", new HashSet<string>(["SRC"]), new HashSet<string>(["ADAPTER"]), DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch.AddHours(1));
+        Equal("AUTHORIZED", NetworkAccessPolicy.Evaluate(true, "SRC", "ADAPTER", auth, DateTimeOffset.UnixEpoch.AddMinutes(1)));
+        Equal("AUTHORIZATION_MISSING", NetworkAccessPolicy.Evaluate(true, "OTHER", "ADAPTER", auth, DateTimeOffset.UnixEpoch.AddMinutes(1)));
+        Equal("AUTHORIZATION_MISSING", NetworkAccessPolicy.Evaluate(true, "SRC", "ADAPTER", auth, DateTimeOffset.UnixEpoch.AddHours(2)));
     }
 
     private sealed class RegistryFixture : IDisposable
