@@ -131,6 +131,7 @@ internal static class Program
         ,("team03 network error code catalog is stable", Team03NetworkErrorCatalog)
         ,("team03 network policy decisions are auditable", Team03NetworkPolicyAudit)
         ,("team03 network policy audit survives JSON replay", Team03NetworkPolicyReplay)
+        ,("team03 network policy audit survives file persistence", Team03NetworkPolicyFilePersistence)
         ,("team03 credentials use opaque handles and revoke cleanly", Team03CredentialIsolation)
         ,("team03 credential redaction removes canary secrets", Team03CredentialRedaction)
         ,("team03 fake adapter negative matrix is fail closed", Team03FakeAdapterNegativeMatrix)
@@ -1755,6 +1756,21 @@ internal static class Program
         Equal("NETWORK_DISABLED", replayed[0].Decision);
         var tampered = auditor.ExportJson().Replace("NETWORK_DISABLED", "AUTHORIZED", StringComparison.Ordinal);
         Throws<InvalidOperationException>(() => NetworkPolicyAuditor.ReplayJson(tampered));
+    }
+
+    private static void Team03NetworkPolicyFilePersistence()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"team03-policy-{Guid.NewGuid():N}.json");
+        try
+        {
+            var auditor = new NetworkPolicyAuditor();
+            auditor.EvaluateAndRecord(false, "SRC", "ADAPTER", null, DateTimeOffset.UnixEpoch);
+            auditor.SaveAudit(path);
+            var loaded = NetworkPolicyAuditor.LoadAudit(path);
+            Equal(1, loaded.Count);
+            Equal("NETWORK_DISABLED", loaded[0].Decision);
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
     }
 
     private static void Team03CredentialIsolation()

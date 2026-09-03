@@ -62,6 +62,8 @@ public sealed class NetworkPolicyAuditor
     }
 
     public string ExportJson() => JsonSerializer.Serialize(events);
+    public void SaveAudit(string path) => File.WriteAllText(path, ExportJson());
+    public static IReadOnlyList<NetworkPolicyAuditEvent> LoadAudit(string path) => ReplayJson(File.ReadAllText(path));
 
     public static IReadOnlyList<NetworkPolicyAuditEvent> ReplayJson(string json)
     {
