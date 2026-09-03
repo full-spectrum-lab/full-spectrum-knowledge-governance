@@ -45,3 +45,10 @@
 
 提交锚点：`13f449e`。本机联合复验结果为 `123/123 PASS`，20 项 team03 测试全部通过。
 该报告确认离线累计实现一致，但独立第二主机、真实网络适配器和生产就绪仍未完成。
+
+## Team03 Offline Governance 复验
+
+- [复验报告](./team03-offline-governance-reverify-20260903-130800.md)
+- [机器判定](./team03-offline-governance-reverify-20260903-130800.json)
+
+提交锚点：`8c61586`。本机离线治理复验为 `128/128 PASS`，`verify-team03=PASS`。
