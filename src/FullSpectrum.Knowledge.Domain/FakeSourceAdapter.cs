@@ -13,6 +13,9 @@ public sealed class SourceAdapterRegistry
 {
     private readonly Dictionary<(string AdapterId, string Version), FakeSourceAdapter> adapters = [];
     private readonly HashSet<(string AdapterId, string Version)> revoked = [];
+    private readonly List<AdapterAuditEvent> audit = [];
+
+    public IReadOnlyList<AdapterAuditEvent> Audit => audit;
 
     public void Register(FakeSourceAdapter adapter)
     {
@@ -22,6 +25,7 @@ public sealed class SourceAdapterRegistry
         if (adapters.TryGetValue(key, out var existing) && !ReferenceEquals(existing, adapter))
             throw new InvalidOperationException("ADAPTER_IDENTITY_CONFLICT");
         adapters[key] = adapter;
+        AppendAudit("REGISTERED", adapter.AdapterId + "@" + adapter.Version);
     }
 
     public FakeSourceAdapter Resolve(string adapterId, string version)
@@ -38,8 +42,18 @@ public sealed class SourceAdapterRegistry
         var key = (adapterId, version);
         if (!adapters.ContainsKey(key)) throw new InvalidOperationException("ADAPTER_NOT_REGISTERED");
         revoked.Add(key);
+        AppendAudit("REVOKED", adapterId + "@" + version);
+    }
+
+    private void AppendAudit(string eventType, string payload)
+    {
+        var previous = audit.LastOrDefault()?.EventDigest ?? string.Empty;
+        var digest = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(eventType + "|" + payload + "|" + previous)));
+        audit.Add(new AdapterAuditEvent(audit.Count + 1, eventType, payload, previous, digest));
     }
 }
+
+public sealed record AdapterAuditEvent(long Sequence, string EventType, string Payload, string PreviousDigest, string EventDigest);
 
 /// <summary>Deterministic, offline-only adapter used for team03 contract tests.</summary>
 public sealed class FakeSourceAdapter
