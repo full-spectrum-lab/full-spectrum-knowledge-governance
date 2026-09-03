@@ -1802,9 +1802,9 @@ internal static class Program
         var provider = new InMemoryCredentialProvider();
         var handle = provider.Issue("AUTH-1", "SRC-1");
         Equal("[CREDENTIAL_HANDLE]", handle.ToString());
-        True(provider.Resolve(handle).Contains("AUTH-1", StringComparison.Ordinal));
+        True(provider.Use(handle, value => value.Contains("AUTH-1", StringComparison.Ordinal)));
         provider.Revoke(handle);
-        Throws<InvalidOperationException>(() => provider.Resolve(handle));
+        Throws<InvalidOperationException>(() => provider.Use(handle, value => value.Length));
     }
 
     private static void Team03CredentialRedaction()

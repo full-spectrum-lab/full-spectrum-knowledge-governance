@@ -8,7 +8,7 @@ public sealed record CredentialHandle(string Id)
 public interface ICredentialProvider
 {
     CredentialHandle Issue(string authorityId, string scope);
-    string Resolve(CredentialHandle handle);
+    T Use<T>(CredentialHandle handle, Func<string, T> consumer);
     void Revoke(CredentialHandle handle);
 }
 
@@ -24,8 +24,13 @@ public sealed class InMemoryCredentialProvider : ICredentialProvider
         return handle;
     }
 
-    public string Resolve(CredentialHandle handle) => values.TryGetValue(handle.Id, out var value)
-        ? value : throw new InvalidOperationException("CREDENTIAL_UNAVAILABLE");
+    public T Use<T>(CredentialHandle handle, Func<string, T> consumer)
+    {
+        ArgumentNullException.ThrowIfNull(consumer);
+        if (!values.TryGetValue(handle.Id, out var value)) throw new InvalidOperationException("CREDENTIAL_UNAVAILABLE");
+        try { return consumer(value); }
+        finally { value = string.Empty; }
+    }
 
     public void Revoke(CredentialHandle handle) => values.Remove(handle.Id);
 }
