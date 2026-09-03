@@ -15,3 +15,10 @@
 - [机器判定](./adapter-registry-reverify-20260902-160500.json)
 
 提交锚点：`bdb8c7e`。本机复验结果为 `110/110 PASS`；精确版本解析、身份冲突拒绝和撤销拒绝均通过。
+
+## Network Policy 复验
+
+- [复验报告](./network-policy-reverify-20260903-112500.md)
+- [机器判定](./network-policy-reverify-20260903-112500.json)
+
+提交锚点：`ebfe8d8`。本机复验结果为 `112/112 PASS`；默认禁网、授权范围和授权过期策略均通过。

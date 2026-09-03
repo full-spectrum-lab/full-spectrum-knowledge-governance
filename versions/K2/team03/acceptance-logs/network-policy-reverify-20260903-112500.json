@@ -1,0 +1,15 @@
+{
+  "commit": "ebfe8d8",
+  "locked_restore": "PASS",
+  "release_build": "PASS",
+  "full_regression": "112/112 PASS",
+  "verify_k2": "PASS",
+  "network_default": "NETWORK_DISABLED",
+  "authorization_scope": "PASS",
+  "authorization_expiry": "PASS",
+  "real_network_requests": "NONE",
+  "real_credentials": "NOT_READ",
+  "packages_lock_diff": "CLEAN",
+  "independent_second_host": "NOT_EXECUTED",
+  "production_ready": "NO"
+}
