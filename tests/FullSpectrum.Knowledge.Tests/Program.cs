@@ -123,6 +123,7 @@ internal static class Program
         ,("team03 adapter registry rejects identity conflicts", Team03AdapterRegistryIdentityConflict)
         ,("team03 adapter registry rejects revoked adapters", Team03AdapterRegistryRevocation)
         ,("team03 adapter registry records an auditable chain", Team03AdapterRegistryAudit)
+        ,("team03 adapter audit replay rejects tampering", Team03AdapterAuditReplay)
         ,("team03 network policy defaults to disabled", Team03NetworkPolicyDisabled)
         ,("team03 network policy enforces authorization scope and expiry", Team03NetworkPolicyAuthorization)
         ,("team03 network error code catalog is stable", Team03NetworkErrorCatalog)
@@ -1664,6 +1665,17 @@ internal static class Program
         Equal("REVOKED", registry.Audit[1].EventType);
         Equal(registry.Audit[0].EventDigest, registry.Audit[1].PreviousDigest);
         True(registry.Audit.All(x => x.EventDigest.Length == 64));
+    }
+
+    private static void Team03AdapterAuditReplay()
+    {
+        var registry = new SourceAdapterRegistry();
+        registry.Register(new FakeSourceAdapter("fake.adapter", "1.0.0", []));
+        registry.Revoke("fake.adapter", "1.0.0");
+        SourceAdapterRegistry.VerifyAuditChain(registry.Audit);
+        var tampered = registry.Audit.ToArray();
+        tampered[1] = tampered[1] with { Payload = "fake.adapter@9.9.9" };
+        Throws<InvalidOperationException>(() => SourceAdapterRegistry.VerifyAuditChain(tampered));
     }
 
     private static void Team03NetworkPolicyDisabled()

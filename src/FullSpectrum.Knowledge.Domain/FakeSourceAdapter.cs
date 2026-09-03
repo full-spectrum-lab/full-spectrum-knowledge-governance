@@ -45,6 +45,22 @@ public sealed class SourceAdapterRegistry
         AppendAudit("REVOKED", adapterId + "@" + version);
     }
 
+    public static void VerifyAuditChain(IEnumerable<AdapterAuditEvent> events)
+    {
+        var previous = string.Empty;
+        long expectedSequence = 1;
+        foreach (var item in events)
+        {
+            if (item.Sequence != expectedSequence || !string.Equals(item.PreviousDigest, previous, StringComparison.Ordinal))
+                throw new InvalidOperationException("ADAPTER_AUDIT_CHAIN_INVALID");
+            var expected = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(item.EventType + "|" + item.Payload + "|" + item.PreviousDigest)));
+            if (!string.Equals(item.EventDigest, expected, StringComparison.Ordinal))
+                throw new InvalidOperationException("ADAPTER_AUDIT_CHAIN_INVALID");
+            previous = item.EventDigest;
+            expectedSequence++;
+        }
+    }
+
     private void AppendAudit(string eventType, string payload)
     {
         var previous = audit.LastOrDefault()?.EventDigest ?? string.Empty;
