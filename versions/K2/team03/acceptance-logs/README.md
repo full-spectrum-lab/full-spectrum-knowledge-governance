@@ -59,6 +59,13 @@
 
 提交锚点：`538c6f4`。受控 `Use(handle, consumer)` 凭据使用边界复验为 `130/130 PASS`；真实凭据、真实网络和生产就绪仍未涉及。
 
+## Credential Lifecycle Leak Scan 复验
+
+- [复验报告](./credential-lifecycle-leakscan-reverify-20260903-203153.md)
+- [机器判定](./credential-lifecycle-leakscan-reverify-20260903-203153.json)
+
+提交锚点：`a9f7d27`。异常、重试、Snapshot/Audit JSON 与 export/replay 离线 canary 扫描为 `131/131 PASS`；H4 仍保持 `PARTIALLY_CLOSED`。
+
 ## Team03 联合复验
 
 - [复验报告](./team03-joint-reverify-20260903-120900.md)
