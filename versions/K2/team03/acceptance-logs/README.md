@@ -71,7 +71,7 @@
 - [复验报告](./credential-provider-secret-flow-reverify-20260903-210000.md)
 - [机器判定](./credential-provider-secret-flow-reverify-20260903-210000.json)
 
-提交锚点：`a9f7d27`。Fake Provider 注入真实 canary 后经 `Use()` consumer 流入生命周期输出，`132/132 PASS`；真实 provider、过期/轮换和内存零化仍未证明。
+原始生命周期扫描证据锚点：`a9f7d27`；最终 provider secret-flow 实现与验证锚点：`b8fcb2b`。Fake Provider 注入真实 canary 后经 `Use()` consumer 流入生命周期输出，`132/132 PASS`；真实 provider、过期/轮换和内存零化仍未证明。
 
 ## Team03 联合复验
 

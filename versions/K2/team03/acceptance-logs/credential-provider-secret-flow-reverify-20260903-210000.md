@@ -1,6 +1,8 @@
 # team03 H4 Provider Secret Flow 复验
 
-- 提交：`a9f7d27`（测试实现）
+- 最终实现锚点：`b8fcb2b`
+- 原始生命周期扫描证据：`a9f7d27`
+- Provenance 说明：`a9f7d27` 提供原始 synthetic lifecycle canary scan；`b8fcb2b` 增加最终 Fake/InMemory Provider secret-flow 实现及对应验证测试。
 - 范围：本机、离线、合成 Fake Provider；未读取真实凭据，未发起网络请求。
 
 ## 结果
@@ -11,7 +13,7 @@
 - `verify-team03`：PASS
 - `packages.lock.json`：CLEAN（继承前序门禁）
 
-新增测试使 canary 由 `InMemoryCredentialProvider.Issue(..., secret)` 注入，经过 `Use()` consumer 生成异常、重试、Snapshot/Audit JSON、export/replay 输出，再统一扫描；撤销后 consumer 不执行。
+最终 provider-flow 测试使 canary 由 `InMemoryCredentialProvider.Issue(..., secret)` 注入，经过 `Use()` consumer 生成异常、重试、Snapshot/Audit JSON、export/replay 输出，再统一扫描；撤销后 consumer 不执行。原始生命周期扫描本身锚定在 `a9f7d27`，最终实现与验证锚定在 `b8fcb2b`。
 
 ## 边界
 
