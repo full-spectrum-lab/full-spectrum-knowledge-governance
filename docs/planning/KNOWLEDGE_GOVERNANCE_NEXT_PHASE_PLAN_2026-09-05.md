@@ -58,7 +58,7 @@ PRODUCTION_READY             = NO
 
 ### Phase A：解除 v0.2.1 复验阻塞（P0）
 
-责任：实例 2 / Knowledge Governance 验证域。
+责任：Knowledge Governance 专属验证轨道；不由负责 FS-VALIDATION-006 的实例 2 代行。
 
 前置条件：隔离环境具备精确 `.NET SDK 10.0.301`；不得修改 `global.json` 的 `rollForward=disable`。
 
@@ -71,7 +71,7 @@ PRODUCTION_READY             = NO
 - 候选包身份、内容和字节哈希复核；
 - 如仍无法获得 SDK，保持 `BLOCKED`，不得降级为 PASS 或 FAIL。
 
-完成标准：形成独立可复核报告，并回写 QPP 交接文件。完成前 `V021_EXTERNAL_REVERIFY=NOT_CONFIRMED`。
+完成标准：由 Knowledge Governance 责任实例或明确指定的验证实例形成独立可复核报告，并回写 QPP 交接文件。完成前 `V021_EXTERNAL_REVERIFY=NOT_CONFIRMED`。
 
 ### Phase B：K2 team03 离线完整矩阵（P0/P1）
 
