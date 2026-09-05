@@ -63,7 +63,7 @@
 
 只有当 5 个必修项均有文档、代码和可复核测试证据后，状态才能从 `OPEN` 改为 `READY_FOR_REVIEW`。复审通过后，最多允许进入离线 FakeSourceAdapter 实现；真实网络适配器仍需另行批准。
 
-联合离线复验：`acceptance-logs/team03-unified-reverify-20260903-123600.md`（`124/124 PASS`）。该证据不关闭真实网络和独立第二主机门禁。
+联合离线复验：`acceptance-logs/team03-unified-reverify-20260903-123600.md`（`124/124 PASS`）。该历史证据不关闭真实网络门禁；独立第二物理主机已由 `K2-team03-final-independent-verification-20260905.zip` 单独通过。
 
 ## 明确禁止
 

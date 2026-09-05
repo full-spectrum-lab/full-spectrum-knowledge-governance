@@ -1,6 +1,6 @@
 # K2 team03 测试与验收方案
 
-状态：`DESIGNED / NOT EXECUTED`
+状态：`DESIGNED / OFFLINE_EXECUTED / REAL_NETWORK_NOT_EXECUTED`
 
 ## 测试层级
 
@@ -53,4 +53,4 @@
 
 ## 当前判定
 
-本文件只定义测试方案，不代表 team03 已实现、已联网或已生产验收。
+本文件定义测试方案；离线实现和独立第二物理主机复验已有证据，但不代表 team03 已联网或已生产验收。

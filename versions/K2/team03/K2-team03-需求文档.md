@@ -1,6 +1,6 @@
 # K2 team03 需求文档：真实来源适配器与动态来源治理
 
-状态：`DESIGNED / NOT IMPLEMENTED / NOT RELEASED`
+状态：`DESIGNED / OFFLINE_REFERENCE_IMPLEMENTATION_COMPLETE / NOT_RELEASED`
 
 ## 目标
 
@@ -43,4 +43,4 @@
 
 ## 阶段准入
 
-第一阶段只允许实现接口、Schema 和离线 `FakeSourceAdapter`。真实 RSS、HTTP API 或 HTML 适配器必须另行审批；生产连接继续禁止。
+第一阶段接口、Schema 和离线 `FakeSourceAdapter` 已完成并通过独立第二主机复验。真实 RSS、HTTP API 或 HTML 网络适配器仍必须另行审批；生产连接继续禁止。
