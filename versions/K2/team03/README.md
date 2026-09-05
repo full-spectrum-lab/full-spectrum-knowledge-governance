@@ -7,6 +7,10 @@ team03 是 team02 之后的设计迭代，聚焦真实来源适配器和动态�
 - [测试与验收方案](./K2-team03-测试与验收方案.md)
 - [GAP 关闭清单](./GAP-CLOSURE-CHECKLIST.md)
 
-当前状态：`DESIGNED / NOT IMPLEMENTED / NOT RELEASED`。
+当前状态：`OFFLINE_REFERENCE_IMPLEMENTATION_COMPLETE / INDEPENDENTLY_REVERIFIED / NOT_RELEASED`。
 
-实现门槛：5 个必修 GAP（B1、H1、H2、H3、H4）全部关闭并复审通过前，不进入真实网络适配器实现。
+截至 `998ca8d`：离线 FakeSourceAdapter、协议模拟、注册与能力策略、网络关闭策略、凭据隔离及 Provider secret-flow 已有源码与测试证据；独立第二物理主机复验在 `b8fcb2b` 上通过（132/132、verify-k2、verify-team03、锁文件 CLEAN）。
+
+当前仍未完成：B1–H4 的全部 GAP 正式关闭、完整离线 Golden/负面矩阵、真实网络适配器、真实凭据接入、过期/轮换/托管堆零化证明。`H4=PARTIALLY_CLOSED`、`T03_002=MITIGATED_BUT_STILL_OPEN`、`PRODUCTION_READY=NO`。
+
+实现门槛：5 个必修 GAP（B1、H1、H2、H3、H4）全部关闭并复审通过前，不进入真实网络适配器实现。当前仅允许继续离线 Golden/负面矩阵与证据闭环工作。
