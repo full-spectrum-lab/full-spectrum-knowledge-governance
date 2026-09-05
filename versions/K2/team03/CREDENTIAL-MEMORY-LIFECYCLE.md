@@ -9,7 +9,7 @@
 | 阶段 | 约束 |
 |---|---|
 | Issue | 由 provider 生成句柄并保存 secret；句柄不含 secret |
-| Use | 仅在 consumer 回调参数中暴露；调用方负责不保存引用 |
+| Use | 仅在 consumer 回调参数中暴露；provider 在回调结束后立即清零并移除句柄（一次性使用） |
 | Exception/Retry | 输出必须经过统一脱敏；不得记录原文 |
 | Snapshot/Audit/Export | 只允许摘要、digest 或 `[REDACTED]`，不得持久化原文 |
 | Revoke | 后续使用返回 `CREDENTIAL_UNAVAILABLE` |
@@ -17,11 +17,13 @@
 
 ## .NET 内存边界
 
-当前实现中的 `finally { value = string.Empty; }` 仅表示释放局部引用意图，不等同于 managed heap 零化。由于 `string` 不可变，实际内存清零尚未得到证明，标记为 `ACTUAL_MEMORY_ZEROIZATION=NOT_PROVEN`。
+实现不再以 `Dictionary<string,string>` 持有 provider 内部副本，而是保存 `char[]`。`Use()` 和 `Revoke()` 都会先移除句柄，再用 `Array.Clear` 清零缓冲区；重复使用已消费或已撤销句柄会返回 `CREDENTIAL_UNAVAILABLE`。这关闭了 provider 内部可清零副本的生命周期旁路。
+
+调用方传入的初始 `string secret` 以及 consumer 主动创建的字符串副本仍受 .NET 不可变字符串语义限制，不能宣称密码学级托管堆零化；因此真实 provider、过期/轮换和更强内存保证仍不在本阶段范围内。
 
 ## 阶段性状态
 
-本规范不宣称真实 provider、过期/轮换、密码学清零或生产安全认证。H4 继续保持 `PARTIALLY_CLOSED`。
+本规范不宣称真实 provider、过期/轮换、密码学清零或生产安全认证。H4 继续保持 `PARTIALLY_CLOSED`；`T03_002` 更新为 `MITIGATED_PROVIDER_BUFFER_CLEARING_BUT_STILL_OPEN`，待真实 provider、过期/轮换和外部复审后再决定是否关闭。
 
 ## Phase 3 证据
 

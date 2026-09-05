@@ -8,13 +8,13 @@ public sealed record CredentialHandle(string Id)
 public interface ICredentialProvider
 {
     CredentialHandle Issue(string authorityId, string scope);
-    T Use<T>(CredentialHandle handle, Func<string, T> consumer);
+    T Use<T>(CredentialHandle handle, Func<ReadOnlyMemory<char>, T> consumer);
     void Revoke(CredentialHandle handle);
 }
 
 public sealed class InMemoryCredentialProvider : ICredentialProvider
 {
-    private readonly Dictionary<string, string> values = [];
+    private readonly Dictionary<string, char[]> values = [];
 
     public CredentialHandle Issue(string authorityId, string scope)
         => Issue(authorityId, scope, $"{authorityId}:{scope}");
@@ -24,19 +24,22 @@ public sealed class InMemoryCredentialProvider : ICredentialProvider
         if (string.IsNullOrWhiteSpace(authorityId) || string.IsNullOrWhiteSpace(scope)) throw new ArgumentException("Credential scope is required.");
         if (string.IsNullOrEmpty(secret)) throw new ArgumentException("Credential secret is required.");
         var handle = new CredentialHandle($"cred-{Guid.NewGuid():N}");
-        values.Add(handle.Id, secret);
+        values.Add(handle.Id, secret.ToCharArray());
         return handle;
     }
 
-    public T Use<T>(CredentialHandle handle, Func<string, T> consumer)
+    public T Use<T>(CredentialHandle handle, Func<ReadOnlyMemory<char>, T> consumer)
     {
         ArgumentNullException.ThrowIfNull(consumer);
-        if (!values.TryGetValue(handle.Id, out var value)) throw new InvalidOperationException("CREDENTIAL_UNAVAILABLE");
+        if (!values.Remove(handle.Id, out var value)) throw new InvalidOperationException("CREDENTIAL_UNAVAILABLE");
         try { return consumer(value); }
-        finally { value = string.Empty; }
+        finally { Array.Clear(value, 0, value.Length); }
     }
 
-    public void Revoke(CredentialHandle handle) => values.Remove(handle.Id);
+    public void Revoke(CredentialHandle handle)
+    {
+        if (values.Remove(handle.Id, out var value)) Array.Clear(value, 0, value.Length);
+    }
 }
 
 public static class CredentialRedactor

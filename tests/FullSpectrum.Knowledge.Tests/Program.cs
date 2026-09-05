@@ -1804,9 +1804,9 @@ internal static class Program
         var provider = new InMemoryCredentialProvider();
         var handle = provider.Issue("AUTH-1", "SRC-1");
         Equal("[CREDENTIAL_HANDLE]", handle.ToString());
-        True(provider.Use(handle, value => value.Contains("AUTH-1", StringComparison.Ordinal)));
-        provider.Revoke(handle);
+        True(provider.Use(handle, value => value.Span.SequenceEqual("AUTH-1:SRC-1")));
         Throws<InvalidOperationException>(() => provider.Use(handle, value => value.Length));
+        provider.Revoke(handle);
     }
 
     private static void Team03CredentialRedaction()
@@ -1857,10 +1857,11 @@ internal static class Program
         var artifacts = new List<string>();
         provider.Use(handle, secret =>
         {
-            artifacts.Add(CredentialRedactor.Redact($"exception token={secret}", [secret]));
-            artifacts.Add(CredentialRedactor.Redact($"retry token={secret}", [secret]));
-            artifacts.Add(CredentialRedactor.Redact(JsonSerializer.Serialize(new { snapshot = secret, audit = secret }), [secret]));
-            artifacts.Add(CredentialRedactor.Redact($"export/replay token={secret}", [secret]));
+            var secretText = secret.ToString();
+            artifacts.Add(CredentialRedactor.Redact($"exception token={secretText}", [secretText]));
+            artifacts.Add(CredentialRedactor.Redact($"retry token={secretText}", [secretText]));
+            artifacts.Add(CredentialRedactor.Redact(JsonSerializer.Serialize(new { snapshot = secretText, audit = secretText }), [secretText]));
+            artifacts.Add(CredentialRedactor.Redact($"export/replay token={secretText}", [secretText]));
             return true;
         });
         True(artifacts.Count == 4);

@@ -82,7 +82,7 @@ Fetch(FetchRequest, FetchContext) -> FetchResult
 
 ### 凭据隔离
 
-`CredentialProvider` 只返回短生命周期不透明句柄；网络执行器在调用边界内解析句柄并在完成后清理。凭据不得进入 FetchRequest、FetchResult、异常消息、结构化日志、快照、EvidenceRecord 或 AuditEvent。日志字段使用 allow-list，测试以 canary secret 扫描所有输出路径。
+`CredentialProvider` 只返回短生命周期不透明句柄；网络执行器在调用边界内解析句柄并在完成后清理。当前 Fake/InMemory Provider 将句柄视为一次性能力：`Use(handle, consumer)` 通过 `ReadOnlyMemory<char>` 在受控回调中暴露，回调结束后立即移除句柄并清零内部 `char[]` 缓冲区；重复使用或撤销后统一返回 `CREDENTIAL_UNAVAILABLE`。凭据不得进入 FetchRequest、FetchResult、异常消息、结构化日志、快照、EvidenceRecord 或 AuditEvent。日志字段使用 allow-list，测试以 canary secret 扫描所有输出路径。该控制不宣称 .NET 托管堆中所有 `string` 副本均可清零，也不等同于密码学级内存擦除。
 
 ## 兼容边界
 
