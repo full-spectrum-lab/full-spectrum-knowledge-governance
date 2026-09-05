@@ -1876,6 +1876,7 @@ internal static class Program
         foreach (var (mode, code) in new[]
         {
             (FakeFailureMode.Timeout, "FETCH_TIMEOUT"),
+            (FakeFailureMode.TlsValidation, "TLS_VALIDATION_FAILED"),
             (FakeFailureMode.Normalization, "NORMALIZATION_FAILED"),
             (FakeFailureMode.DigestMismatch, "DIGEST_MISMATCH"),
             (FakeFailureMode.RetryLimit, "RETRY_LIMIT_EXCEEDED")

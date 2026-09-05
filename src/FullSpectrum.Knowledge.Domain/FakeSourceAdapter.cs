@@ -8,7 +8,7 @@ public sealed record SourceAdapterDescriptor(string AdapterId, string Version, I
 public sealed record FakeSourceFixture(string SourceId, KnowledgeVersion SourceVersion, string RawPayload, string NormalizedPayload);
 public sealed record FakeFetchRequest(string SourceId, KnowledgeVersion SourceVersion, string CorrelationId, bool NetworkEnabled = false);
 public sealed record FakeFetchResult(KnowledgeRetrievalOutcome Outcome, string? RawDigest, string? NormalizedDigest, string? ErrorCode, string AdapterId, string AdapterVersion);
-public enum FakeFailureMode { None, Timeout, Normalization, DigestMismatch, RetryLimit }
+public enum FakeFailureMode { None, Timeout, TlsValidation, Normalization, DigestMismatch, RetryLimit }
 
 public sealed class SourceAdapterRegistry
 {
@@ -120,6 +120,7 @@ public sealed class FakeSourceAdapter
             var code = FailureMode switch
             {
                 FakeFailureMode.Timeout => "FETCH_TIMEOUT",
+                FakeFailureMode.TlsValidation => "TLS_VALIDATION_FAILED",
                 FakeFailureMode.Normalization => "NORMALIZATION_FAILED",
                 FakeFailureMode.DigestMismatch => "DIGEST_MISMATCH",
                 FakeFailureMode.RetryLimit => "RETRY_LIMIT_EXCEEDED",

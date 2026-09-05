@@ -38,6 +38,7 @@
 - [ ] 证明禁用状态无外连、无凭据读取、无快照写入；
 - [x] 第一阶段：默认禁网、授权范围匹配、授权过期拒绝；证据：`acceptance-logs/network-policy-reverify-20260903-112500.md`。
 - [ ] 稳定错误码全量目录、审计事件持久化和外部复审仍待完成。
+- [x] 离线 TLS 失败错误码 `TLS_VALIDATION_FAILED` 已加入 Fake Adapter 负面矩阵；证据：`acceptance-logs/tls-error-code-reverify-20260905.md`。
 
 ### H3：离线 FakeSourceAdapter 与 Golden
 
