@@ -148,9 +148,12 @@ public sealed class ControlledSourceRegistry : IDisposable
             if (string.Equals(existing, payload, StringComparison.Ordinal)) return snapshot;
             throw new InvalidOperationException("Conflicting snapshot overwrite is forbidden.");
         }
-        database.Execute("INSERT INTO kg_dynamic_snapshot(snapshot_id, payload) VALUES (?, ?)", snapshot.SnapshotId, payload);
-        AppendAudit(registration, "SNAPSHOT_SAVED", payload);
-        return snapshot;
+        return database.Transaction(() =>
+        {
+            database.Execute("INSERT INTO kg_dynamic_snapshot(snapshot_id, payload) VALUES (?, ?)", snapshot.SnapshotId, payload);
+            AppendAudit(registration, "SNAPSHOT_SAVED", payload);
+            return snapshot;
+        });
     }
 
     public DynamicKnowledgeSnapshot? GetSnapshot(string snapshotId)
