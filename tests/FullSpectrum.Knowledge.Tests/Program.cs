@@ -120,6 +120,7 @@ internal static class Program
         ,("team03 fake adapter maps results to team02 retrieval contract", Team03FakeAdapterRetrievalContract)
         ,("team03 fake adapter persists a team02 snapshot", Team03FakeAdapterSnapshotPersistence)
         ,("team03 retrieval snapshot audit replays after persistence", Team03RetrievalSnapshotAuditReplay)
+        ,("team03 retrieval retry is idempotent after persistence", Team03RetrievalRetryIdempotent)
         ,("team03 adapter registry resolves exact versions", Team03AdapterRegistryExactVersion)
         ,("team03 adapter registry rejects identity conflicts", Team03AdapterRegistryIdentityConflict)
         ,("team03 adapter registry rejects revoked adapters", Team03AdapterRegistryRevocation)
@@ -1700,6 +1701,42 @@ internal static class Program
             True(audit[1].EventDigest.Length == 64);
             Equal(retrieval.RetrievalId, replayedSnapshot!.RetrievalId);
             Equal(retrieval.NormalizationDigest, replayedSnapshot.NormalizationDigest);
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+    }
+
+    private static void Team03RetrievalRetryIdempotent()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"fskg-team03-retry-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            var fixture = new FakeSourceFixture("SRC-RETRY", new KnowledgeVersion("1.0.0"), "raw", "normalized");
+            var adapter = new FakeSourceAdapter("fake.adapter", "1.0.0", [fixture]);
+            var registration = new KnowledgeSourceRegistration(
+                fixture.SourceId, fixture.SourceVersion, "synthetic", KnowledgeSourceKind.Manual,
+                "terms://synthetic", "policy://synthetic", adapter.AdapterId, adapter.Version,
+                ["example.invalid"], KnowledgeSourceLifecycleState.Active, DateTimeOffset.UnixEpoch,
+                DigestRef.Sha256("registration-retry"));
+            var request = new FakeFetchRequest(fixture.SourceId, fixture.SourceVersion, "corr-retry", true);
+            var result = adapter.Fetch(request);
+            var retrieval = adapter.ToRetrieval(request, result, "RET-RETRY", DateTimeOffset.UnixEpoch);
+            var databasePath = Path.Combine(root, "metadata.sqlite3");
+
+            using (var registry = new ControlledSourceRegistry(databasePath))
+            {
+                registry.Register(registration);
+                Equal(retrieval.RetrievalId, registry.RecordRetrieval(retrieval).RetrievalId);
+                Equal(retrieval.RetrievalId, registry.RecordRetrieval(retrieval).RetrievalId);
+                var stored = registry.GetRetrieval(retrieval.RetrievalId)!;
+                Equal(retrieval.RequestIdentity, stored.RequestIdentity);
+                Equal(retrieval.RetrievalDigest, stored.RetrievalDigest);
+                Equal(retrieval.NormalizationDigest, stored.NormalizationDigest);
+            }
+
+            using var reopened = new ControlledSourceRegistry(databasePath);
+            Equal(retrieval.RequestIdentity, reopened.GetRetrieval(retrieval.RetrievalId)!.RequestIdentity);
+            Equal(1, reopened.ReadAudit(fixture.SourceId, fixture.SourceVersion).Count(x => x.EventType == "REGISTERED"));
         }
         finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
     }
