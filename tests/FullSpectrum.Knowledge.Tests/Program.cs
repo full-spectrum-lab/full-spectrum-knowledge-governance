@@ -138,6 +138,8 @@ internal static class Program
         ,("team03 credential redaction removes canary secrets", Team03CredentialRedaction)
         ,("team03 credential canary stays redacted across failure and persistence paths", Team03CredentialCanaryLifecycle)
         ,("team03 credential provider secret flows through controlled lifecycle", Team03CredentialProviderSecretFlow)
+        ,("team03 credential consumer exception clears provider buffer", Team03CredentialExceptionClearsBuffer)
+        ,("team03 credential revoke is idempotent", Team03CredentialRevokeIsIdempotent)
         ,("team03 fake adapter negative matrix is fail closed", Team03FakeAdapterNegativeMatrix)
         ,("team03 fake adapter rejects failed snapshot promotion", Team03AdapterRejectsFailedSnapshot)
         ,("team03 fake adapter preserves parent snapshot binding", Team03FakeAdapterParentBinding)
@@ -1823,15 +1825,16 @@ internal static class Program
     {
         const string canary = "CANARY-LIFECYCLE-SECRET";
         var provider = new InMemoryCredentialProvider();
-        var handle = provider.Issue("AUTH-LIFECYCLE", "SRC-LIFECYCLE");
+        var handle = provider.Issue("AUTH-LIFECYCLE", "SRC-LIFECYCLE", canary);
         var outputs = new List<string>();
 
         try
         {
             provider.Use(handle, secret =>
             {
-                try { throw new InvalidOperationException($"fetch failed token={canary}"); }
-                catch (Exception ex) { outputs.Add(CredentialRedactor.Redact(ex.Message, [canary])); }
+                var secretText = secret.ToString();
+                try { throw new InvalidOperationException($"fetch failed token={secretText}"); }
+                catch (Exception ex) { outputs.Add(CredentialRedactor.Redact(ex.Message, [secretText])); }
                 return true;
             });
         }
@@ -1847,6 +1850,33 @@ internal static class Program
         True(outputs.Count >= 4);
         True(outputs.All(value => !value.Contains(canary, StringComparison.Ordinal)));
         True(outputs.All(value => value.Contains("[REDACTED]", StringComparison.Ordinal)));
+        provider.Revoke(handle);
+        Throws<InvalidOperationException>(() => provider.Use(handle, _ => "must-not-run"));
+    }
+
+    private static void Team03CredentialExceptionClearsBuffer()
+    {
+        const string canary = "CANARY-EXCEPTION-CLEAR";
+        var provider = new InMemoryCredentialProvider();
+        var handle = provider.Issue("AUTH-EXCEPTION", "SRC-EXCEPTION", canary);
+        ReadOnlyMemory<char> observed = default;
+
+        Throws<InvalidOperationException>(() => provider.Use<bool>(handle, secret =>
+        {
+            observed = secret;
+            throw new InvalidOperationException("consumer failure");
+        }));
+
+        True(observed.Length == canary.Length);
+        True(observed.Span.ToArray().All(value => value == '\0'));
+        Throws<InvalidOperationException>(() => provider.Use(handle, _ => "must-not-run"));
+    }
+
+    private static void Team03CredentialRevokeIsIdempotent()
+    {
+        var provider = new InMemoryCredentialProvider();
+        var handle = provider.Issue("AUTH-REVOKE-TWICE", "SRC-REVOKE-TWICE", "revoke-twice-secret");
+        provider.Revoke(handle);
         provider.Revoke(handle);
         Throws<InvalidOperationException>(() => provider.Use(handle, _ => "must-not-run"));
     }
