@@ -1806,7 +1806,9 @@ internal static class Program
         Equal("[CREDENTIAL_HANDLE]", handle.ToString());
         True(provider.Use(handle, value => value.Span.SequenceEqual("AUTH-1:SRC-1")));
         Throws<InvalidOperationException>(() => provider.Use(handle, value => value.Length));
-        provider.Revoke(handle);
+        var revoked = provider.Issue("AUTH-2", "SRC-2", "revoked-secret");
+        provider.Revoke(revoked);
+        Throws<InvalidOperationException>(() => provider.Use(revoked, value => value.Length));
     }
 
     private static void Team03CredentialRedaction()
