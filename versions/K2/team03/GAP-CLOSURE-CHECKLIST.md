@@ -19,6 +19,7 @@
 - [x] 离线 Retrieval→Snapshot→Audit 持久化链路与父快照测试；证据：`13f449e` 联合复验报告。
 - [x] Snapshot 写入与 `SNAPSHOT_SAVED` 审计事件已置于同一 SQLite 事务；失败采集无可用快照证据：`Team03FailedRetrievalAtomicity`。
 - [x] 已补入 Retrieval→Snapshot→Audit→SQLite 重开→Replay 的跨模块回放测试：`Team03RetrievalSnapshotAuditReplay`，证据：`acceptance-logs/team03-offline-gate-reverify-20260905.md`；完整 Golden 矩阵仍待补齐。
+- [x] 离线 Golden/负面矩阵索引已建立：`acceptance-logs/team03-offline-golden-negative-matrix-20260905.md`；持久化审计行篡改注入和外部复核仍待完成。
 
 ### H1：SourceAdapter 接口与版本兼容
 
