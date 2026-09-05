@@ -1,0 +1,98 @@
+schema_version: "0.1"
+project: knowledge-governance-team03
+as_of: "2026-09-05T00:00:00+08:00"
+release:
+  current: unreleased
+  channel: unreleased
+  canonical_host: github
+  source_release: null
+  mirror_hosts:
+    - gitee
+  binary_assets_host: null
+implementation_status: IMPLEMENTED
+verification_status: INDEPENDENTLY_REPRODUCED
+maturity_level: INDEPENDENTLY_REPRODUCED
+production_readiness:
+  status: NOT_READY
+  boolean: false
+  context: "Team03/H4 离线 Fake/InMemory provider 范围；不代表真实网络或生产就绪"
+  verified_environment: "independent-second-host-offline"
+target_commit: "4d797122f7709c16163099707de6662f87d0a581"
+latest_verified_commit: "4d797122f7709c16163099707de6662f87d0a581"
+evidence:
+  level: INDEPENDENTLY_REPRODUCED
+  bundle: "versions/K2/team03/acceptance-logs/external-review-h4-4d79712-remediated-20260905.zip"
+  bundle_sha256: "4d0f4193004064c0d09748a96a66d78d6b77f87d5090c1ac4a6ba5bcc970a906"
+  verified_at: "2026-09-05T00:00:00+08:00"
+  verifier: "external evidence-first review"
+  scope: OFFLINE
+  limitations:
+    - "提交方侧脱敏哈希为后补自述值，无采集命令日志或签名"
+    - "未排除两台机器属于同一控制方"
+    - "不等同于强意义的独立第三方复核"
+    - "REAL_NETWORK_ADAPTER=NOT_IMPLEMENTED"
+    - "REAL_CREDENTIALS=NOT_READ"
+    - "FULL_MANAGED_STRING_ZEROIZATION=NOT_PROVEN"
+dependencies: []
+owner: "full-spectrum-lab"
+next_milestone: "real provider / expiry / rotation evidence"
+blockers:
+  - "真实网络适配器未实现"
+  - "完整 managed-string zeroization 未证明"
+unknowns:
+  - item: "真实 provider、过期和轮换能力"
+    owner: "full-spectrum-knowledge-governance"
+    review_by: "2026-09-12"
+    disposition_on_expiry: blocker
+  - item: "生产环境部署与真实凭据验证"
+    owner: "full-spectrum-knowledge-governance"
+    review_by: "2026-09-12"
+    disposition_on_expiry: blocker
+out_of_scope:
+  - "Observer v0.4.0-beta 状态"
+  - "Protocol–Observer 兼容性"
+reported:
+  - field: independent_second_host_verify
+    value: PASS
+    source: "second-host-4d79712-evidence-20260905"
+    reported_at: "2026-09-05T18:27:52+08:00"
+confirmed:
+  - field: credential_buffer_clearing
+    value: PASS
+    evidence: "versions/K2/team03/acceptance-logs/external-review-h4-4d79712-remediated-20260905.zip"
+    evidence_level: A
+    confirmed_at: "2026-09-05"
+  - field: revoke_fail_closed
+    value: PASS
+    evidence: "versions/K2/team03/acceptance-logs/external-review-h4-4d79712-remediated-20260905.zip"
+    evidence_level: A
+    confirmed_at: "2026-09-05"
+  - field: canary_lifecycle_redaction
+    value: PASS
+    evidence: "versions/K2/team03/acceptance-logs/external-review-h4-4d79712-remediated-20260905.zip"
+    evidence_level: A
+    confirmed_at: "2026-09-05"
+  - field: independent_second_host_verify
+    value: PASS
+    evidence: "versions/K2/team03/acceptance-logs/external-review-h4-4d79712-remediated-20260905.zip"
+    evidence_level: B
+    confirmed_at: "2026-09-05"
+    limitations:
+      - "提交方侧哈希为后补自述值，无采集命令日志或签名"
+      - "未排除两台机器属于同一控制方"
+      - "不等同于强意义的独立第三方复核"
+  - field: h4
+    value: PARTIALLY_CLOSED
+    evidence: "versions/K2/team03/acceptance-logs/external-review-h4-4d79712-remediated-20260905.zip"
+    evidence_level: A
+    confirmed_at: "2026-09-05"
+  - field: production_ready
+    value: NO
+    evidence: "versions/K2/team03/acceptance-logs/external-review-h4-4d79712-remediated-20260905.zip"
+    evidence_level: A
+    confirmed_at: "2026-09-05"
+source_links:
+  repository: "https://github.com/full-spectrum-lab/full-spectrum-knowledge-governance"
+  release: null
+  ci: null
+  evidence: "versions/K2/team03/acceptance-logs/external-review-h4-4d79712-remediated-20260905.zip"
