@@ -18,7 +18,7 @@
 - [ ] 增加跨模块契约 Golden 和回放测试；
 - [x] 离线 Retrieval→Snapshot→Audit 持久化链路与父快照测试；证据：`13f449e` 联合复验报告。
 - [x] Snapshot 写入与 `SNAPSHOT_SAVED` 审计事件已置于同一 SQLite 事务；失败采集无可用快照证据：`Team03FailedRetrievalAtomicity`。
-- [ ] 跨模块完整回放证据仍待补齐。
+- [x] 已补入 Retrieval→Snapshot→Audit→SQLite 重开→Replay 的跨模块回放测试：`Team03RetrievalSnapshotAuditReplay`，证据：`acceptance-logs/team03-offline-gate-reverify-20260905.md`；完整 Golden 矩阵仍待补齐。
 
 ### H1：SourceAdapter 接口与版本兼容
 

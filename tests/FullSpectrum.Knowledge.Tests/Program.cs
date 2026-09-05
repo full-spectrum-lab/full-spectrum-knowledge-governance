@@ -119,6 +119,7 @@ internal static class Program
         ,("team03 fake adapter fails closed when network is disabled", Team03FakeAdapterNetworkDisabled)
         ,("team03 fake adapter maps results to team02 retrieval contract", Team03FakeAdapterRetrievalContract)
         ,("team03 fake adapter persists a team02 snapshot", Team03FakeAdapterSnapshotPersistence)
+        ,("team03 retrieval snapshot audit replays after persistence", Team03RetrievalSnapshotAuditReplay)
         ,("team03 adapter registry resolves exact versions", Team03AdapterRegistryExactVersion)
         ,("team03 adapter registry rejects identity conflicts", Team03AdapterRegistryIdentityConflict)
         ,("team03 adapter registry rejects revoked adapters", Team03AdapterRegistryRevocation)
@@ -1642,6 +1643,63 @@ internal static class Program
             using var reopened = new ControlledSourceRegistry(Path.Combine(root, "metadata.sqlite3"));
             Equal(snapshot.SnapshotDigest, reopened.GetSnapshot(snapshot.SnapshotId)!.SnapshotDigest);
             True(reopened.ReadAudit(fixture.SourceId, fixture.SourceVersion).Any(x => x.EventType == "SNAPSHOT_SAVED"));
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+    }
+
+    private static void Team03RetrievalSnapshotAuditReplay()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"fskg-team03-replay-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            var fixture = new FakeSourceFixture("SRC-REPLAY", new KnowledgeVersion("1.0.0"), "raw", "normalized");
+            var adapter = new FakeSourceAdapter("fake.adapter", "1.0.0", [fixture]);
+            var registration = new KnowledgeSourceRegistration(
+                fixture.SourceId, fixture.SourceVersion, "synthetic", KnowledgeSourceKind.Manual,
+                "terms://synthetic", "policy://synthetic", adapter.AdapterId, adapter.Version,
+                ["example.invalid"], KnowledgeSourceLifecycleState.Active, DateTimeOffset.UnixEpoch,
+                DigestRef.Sha256("registration-replay"));
+            var request = new FakeFetchRequest(fixture.SourceId, fixture.SourceVersion, "corr-replay", true);
+            var result = adapter.Fetch(request);
+            var retrieval = adapter.ToRetrieval(request, result, "RET-REPLAY", DateTimeOffset.UnixEpoch);
+            var snapshot = adapter.ToSnapshot(request, result, retrieval, "SNAP-REPLAY", DateTimeOffset.UnixEpoch);
+            var databasePath = Path.Combine(root, "metadata.sqlite3");
+
+            using (var registry = new ControlledSourceRegistry(databasePath))
+            {
+                registry.Register(registration);
+                registry.RecordRetrieval(retrieval);
+                registry.SaveSnapshot(snapshot);
+            }
+
+            using var reopened = new ControlledSourceRegistry(databasePath);
+            var replayedRegistration = reopened.ReplaySource(fixture.SourceId, fixture.SourceVersion);
+            var replayedRetrieval = reopened.GetRetrieval(retrieval.RetrievalId);
+            var replayedSnapshot = reopened.GetSnapshot(snapshot.SnapshotId);
+            var audit = reopened.ReadAudit(fixture.SourceId, fixture.SourceVersion);
+
+            Equal(registration.SourceId, replayedRegistration.SourceId);
+            Equal(registration.SourceVersion, replayedRegistration.SourceVersion);
+            Equal(registration.AdapterId, replayedRegistration.AdapterId);
+            Equal(registration.AdapterVersion, replayedRegistration.AdapterVersion);
+            Equal(registration.State, replayedRegistration.State);
+            Equal(registration.RegistrationDigest, replayedRegistration.RegistrationDigest);
+            Equal(registration.AllowedOrigins.Single(), replayedRegistration.AllowedOrigins.Single());
+            Equal(retrieval!.RetrievalId, replayedRetrieval!.RetrievalId);
+            Equal(retrieval.RequestIdentity, replayedRetrieval.RequestIdentity);
+            Equal(retrieval.NormalizationDigest, replayedRetrieval.NormalizationDigest);
+            Equal(retrieval.SanitizationDigest, replayedRetrieval.SanitizationDigest);
+            Equal(snapshot!.SnapshotId, replayedSnapshot!.SnapshotId);
+            Equal(snapshot.SnapshotDigest, replayedSnapshot.SnapshotDigest);
+            Equal(snapshot.ParentSnapshotId, replayedSnapshot.ParentSnapshotId);
+            Equal(2, audit.Count);
+            Equal("REGISTERED", audit[0].EventType);
+            Equal("SNAPSHOT_SAVED", audit[1].EventType);
+            Equal(audit[0].EventDigest, audit[1].PreviousDigest);
+            True(audit[1].EventDigest.Length == 64);
+            Equal(retrieval.RetrievalId, replayedSnapshot!.RetrievalId);
+            Equal(retrieval.NormalizationDigest, replayedSnapshot.NormalizationDigest);
         }
         finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
     }
