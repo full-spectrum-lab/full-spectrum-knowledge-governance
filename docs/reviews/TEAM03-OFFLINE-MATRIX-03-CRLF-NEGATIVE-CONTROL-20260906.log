@@ -1,0 +1,9 @@
+timestamp=2026-09-06T10:18:00+08:00
+checkout_mode=Windows default CRLF worktree
+target_commit=e1e06bd6b82591114fa65c89e6378a0a45163df0
+result=135/136
+failed_test=v0.1 schema and Golden baseline hashes are unchanged
+expected_hash=1f5d32d1728808dfb4aba9043aae79e0faba73dbbe1c03f6fdc14117163ae9a7
+actual_hash=0036d90f04c33304acde39c423011e20698eaf1ca1fc2570c177158aaa3af47e
+interpretation=LINE_ENDING_NEGATIVE_CONTROL_ONLY; not a business regression
+规范运行方式=core.autocrlf=false clean clone, which produced 136/136

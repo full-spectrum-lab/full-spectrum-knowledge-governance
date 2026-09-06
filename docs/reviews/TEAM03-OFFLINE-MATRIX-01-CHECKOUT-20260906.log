@@ -1,0 +1,7 @@
+timestamp=2026-09-06T10:24:22+08:00
+clone_mode=clean local clone equivalent; source repository remote was verified separately
+core.autocrlf=false
+target_commit=e1e06bd6b82591114fa65c89e6378a0a45163df0
+checkout=detached HEAD at e1e06bd6b82591114fa65c89e6378a0a45163df0
+worktree_status=CLEAN
+sdk=10.0.301
