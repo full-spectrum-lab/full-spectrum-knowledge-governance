@@ -2,9 +2,9 @@
 
 状态：`PARTIALLY_CLOSED / OFFLINE_IMPLEMENTATION_COMPLETE / REAL_NETWORK_BLOCKED`
 
-设计补充状态（2026-09-05）：B1、H1、H2、H3、H4 的文档契约已补充；离线实现累计门禁 `132/132 PASS`，`verify-k2=PASS`、`verify-team03=PASS`，独立第二物理主机在 `b8fcb2b` 上完成复验并通过。完整契约闭环、部分 Golden/负面矩阵、真实网络适配器和 H4 真实 provider 能力仍未完成，清单保持 `PARTIALLY_CLOSED`，不进入真实网络实现。
+设计补充状态（2026-09-06）：B1、H1、H2、H3、H4 的文档契约已补充；当前离线目标提交复验记录为 `136/136 PASS`，`verify-k2=PASS`、`verify-team03=PASS`。历史 `132/132`、旧第二主机和旧 provenance 记录不再作为当前目标提交证据。完整契约闭环、持久化审计行篡改注入、完整 Golden 哈希清单、真实网络适配器和 H4 真实 provider 能力仍未完成，清单保持 `PARTIALLY_CLOSED`，不进入真实网络实现。
 
-证据入口：第二主机证据包 `K2-team03-final-independent-verification-20260905.zip`（SHA-256 `DF910113563CAD75D7103FAF5E4AA60F23E7DB0E50B801B19488001A8F5D31D3`）；最终实现提交 `b8fcb2b`，provenance 文档修订 `998ca8d`。
+当前证据入口：`artifacts/team03-offline-matrix-external-review-20260906-revised.zip`；当前复验日志位于 `artifacts/team03-reverify-logs-20260906/`。第二主机历史材料仅作为历史参考，不自动升级当前 Team03 状态。
 
 本清单依据 2026-09-02 两份外部独立设计评审报告建立。team03 在全部必修项关闭并完成复审前，不得实现真实网络适配器、连接生产环境或改变 team02 冻结边界。
 
@@ -66,7 +66,7 @@
 
 只有当 5 个必修项均有文档、代码和可复核测试证据后，状态才能从 `OPEN` 改为 `READY_FOR_REVIEW`。复审通过后，最多允许进入离线 FakeSourceAdapter 实现；真实网络适配器仍需另行批准。
 
-联合离线复验：`acceptance-logs/team03-unified-reverify-20260903-123600.md`（`124/124 PASS`）。该历史证据不关闭真实网络门禁；独立第二物理主机已由 `K2-team03-final-independent-verification-20260905.zip` 单独通过。
+联合离线复验：`acceptance-logs/team03-unified-reverify-20260903-123600.md`（`124/124 PASS`）。该历史证据不关闭真实网络门禁；当前目标提交复验以修订外部评审包和 2026-09-06 运行日志为准。历史第二主机证据带有限制，不等同强意义第三方独立性。
 
 ## 明确禁止
 
