@@ -4,7 +4,7 @@
 
 设计补充状态（2026-09-06）：B1、H1、H2、H3、H4 的文档契约已补充；当前离线目标提交复验记录为 `136/136 PASS`，`verify-k2=PASS`、`verify-team03=PASS`。历史 `132/132`、旧第二主机和旧 provenance 记录不再作为当前目标提交证据。完整契约闭环、持久化审计行篡改注入、完整 Golden 哈希清单、真实网络适配器和 H4 真实 provider 能力仍未完成，清单保持 `PARTIALLY_CLOSED`，不进入真实网络实现。
 
-当前证据入口：`artifacts/team03-offline-matrix-external-review-20260906-revised.zip`；当前复验日志位于 `artifacts/team03-reverify-logs-20260906/`。第二主机历史材料仅作为历史参考，不自动升级当前 Team03 状态。
+当前证据入口：`artifacts/team03-offline-matrix-external-review-20260906-final.zip`；当前复验日志位于 `artifacts/team03-reverify-logs-20260906-e1-lf/`。第二主机历史材料仅作为历史参考，不自动升级当前 Team03 状态。
 
 本清单依据 2026-09-02 两份外部独立设计评审报告建立。team03 在全部必修项关闭并完成复审前，不得实现真实网络适配器、连接生产环境或改变 team02 冻结边界。
 
