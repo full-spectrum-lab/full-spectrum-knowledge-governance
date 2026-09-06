@@ -1,0 +1,9 @@
+repository=full-spectrum-knowledge-governance
+target_commit=e1e06bd6b82591114fa65c89e6378a0a45163df0
+parent_commit=09c73033e750ed9c4f23a495ce553062e322f956
+tree=6febe5cc841e66a29f3e13bd01e7ab7c2799f8fc
+branch=main
+remote_github=https://github.com/full-spectrum-lab/full-spectrum-knowledge-governance.git
+remote_gitee=https://gitee.com/full-spectrum/full-spectrum-knowledge-governance.git
+binding_rule=all packaged source files must be hashed and compared against git show target_commit:path
+historical_log_note=team03-offline-gate-reverify-20260905.md contains an older target and 134/134 run; see EVIDENCE-CORRECTION

@@ -1,8 +1,13 @@
-# Team03 离线矩阵外部评审包清单
+# Team03 离线矩阵外部评审包清单（修订版）
 
 目标提交：`e1e06bd6b82591114fa65c89e6378a0a45163df0`
 
 ## 包内文件
+
+修订包另附：
+
+- `COMMIT-INFO`
+- `EVIDENCE-CORRECTION.md`
 
 - `global.json`
 - `tests/FullSpectrum.Knowledge.Tests/Program.cs`
@@ -19,7 +24,8 @@
 ## 结果边界
 
 ```ini
-FULL_TESTS = 136/136
+HISTORICAL_GATE_LOG = 134/134
+CURRENT_TARGET_REVERIFY = 136/136 (must be directly re-run and logged)
 VERIFY_K2 = PASS
 VERIFY_TEAM03 = PASS
 PERSISTED_AUDIT_ROW_TAMPER_INJECTION = NOT_EXECUTED
