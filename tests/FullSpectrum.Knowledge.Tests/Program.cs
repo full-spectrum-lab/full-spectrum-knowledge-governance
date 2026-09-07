@@ -112,6 +112,7 @@ internal static class Program
         ("K2 snapshot survives restart", K2SnapshotRestart),
         ("K2 snapshot is immutable", K2SnapshotImmutable),
         ("K2 source lifecycle and audit replay", K2LifecycleAudit)
+        ,("K2 persisted audit row tampering fails closed on replay", K2PersistedAuditRowTamper)
         ,("K2 schemas are strict and versioned", K2SchemasStrict)
         ,("K2 snapshot rejects digest tampering", K2SnapshotDigestTamper)
         ,("K2 snapshot enforces parent relationship", K2SnapshotParent)
@@ -1446,6 +1447,39 @@ internal static class Program
             Equal("https://json-schema.org/draft/2020-12/schema", document.RootElement.GetProperty("$schema").GetString());
             Equal(JsonValueKind.False, document.RootElement.GetProperty("additionalProperties").ValueKind);
             True(document.RootElement.GetProperty("required").GetArrayLength() > 0);
+        }
+    }
+
+    private static void K2PersistedAuditRowTamper()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"fskg-k2-tamper-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        var databasePath = Path.Combine(root, "metadata.sqlite3");
+        try
+        {
+            using (var registry = new ControlledSourceRegistry(databasePath))
+            {
+                registry.Register(K2Registration());
+            }
+
+            using var tampered = new ControlledSourceRegistry(databasePath);
+            var databaseField = typeof(ControlledSourceRegistry).GetField(
+                "database",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                ?? throw new InvalidOperationException("SQLite database field was not found.");
+            var database = databaseField.GetValue(tampered)
+                ?? throw new InvalidOperationException("SQLite database instance was not found.");
+            var executeScript = database.GetType().GetMethod(
+                "ExecuteScript",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                ?? throw new InvalidOperationException("SQLite test execution hook was not found.");
+
+            executeScript.Invoke(database, ["UPDATE kg_source_audit SET event_digest = 'tampered' WHERE sequence = 1;"]);
+            Throws<InvalidOperationException>(() => tampered.ReplaySource("SRC-001", new KnowledgeVersion("1.0.0")));
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
         }
     }
 
