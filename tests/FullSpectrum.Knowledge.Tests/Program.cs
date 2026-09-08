@@ -149,6 +149,16 @@ internal static class Program
         ,("team03 failed retrieval does not create a snapshot", Team03FailedRetrievalAtomicity)
         ,("team03 content drift changes snapshot digest", Team03ContentDriftDigest)
         ,("team03 hybrid snapshot preserves fixed baseline", Team03HybridBaselinePreserved)
+        ,("engine2 audit persists and replays after SQLite reopen", Engine2AuditPersistsAndReplays)
+        ,("engine2 audit rejects event digest mismatch", Engine2AuditRejectsEventDigestMismatch)
+        ,("engine2 audit rejects Engine result digest tampering", Engine2AuditRejectsResultTampering)
+        ,("engine2 audit rejects SnapshotBinding modification", Engine2AuditRejectsSnapshotBindingModification)
+        ,("engine2 audit rejects conflicting duplicate identity", Engine2AuditRejectsDuplicateConflict)
+        ,("engine2 audit persistence failure is fail closed", Engine2AuditPersistenceFailsClosed)
+        ,("engine2 audit rejects unknown error codes", Engine2AuditRejectsUnknownErrorCode)
+        ,("engine2 audit rejects untrusted protocol objects", Engine2AuditRejectsUntrustedProtocolObject)
+        ,("engine2 audit replay rejects persisted row tampering", Engine2AuditReplayRejectsPersistedTampering)
+        ,("engine2 canonical digests match published Engine implementation", Engine2CanonicalDigestsMatchEngine)
     ];
 
     private static int Main()
@@ -2106,6 +2116,155 @@ internal static class Program
         Equal("synthetic", snapshot.SourceLevel);
         True(snapshot.CanonicalArtifactDigests.Count == 1);
         True(!snapshot.SourceLevel.Equals("fixed", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static void Engine2AuditPersistsAndReplays()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"fskg-engine2-{Guid.NewGuid():N}"); Directory.CreateDirectory(root);
+        var path = Path.Combine(root, "engine2.sqlite3");
+        try
+        {
+            var envelope = Engine2Envelope();
+            using (var registry = new Engine2AuditRegistry(path)) registry.Append(envelope);
+            using var reopened = new Engine2AuditRegistry(path);
+            var replayed = reopened.Replay(envelope.AuditEvent.EventId);
+            Equal(envelope.EngineResult.Decision, replayed.EngineResult.Decision);
+            Equal(envelope.EngineResult.ResultDigest, replayed.EngineResult.ResultDigest);
+            Equal(envelope.SnapshotBinding, replayed.SnapshotBinding);
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+    }
+
+    private static void Engine2AuditRejectsEventDigestMismatch()
+    {
+        using var fixture = new Engine2AuditFixture();
+        var envelope = Engine2Envelope() with { AuditEventDigest = new string('0', 64) };
+        ThrowsEngine2("EVIDENCE_DIGEST_MISMATCH", () => fixture.Registry.Append(envelope));
+    }
+
+    private static void Engine2AuditRejectsResultTampering()
+    {
+        using var fixture = new Engine2AuditFixture();
+        var envelope = Engine2Envelope();
+        envelope = envelope with { EngineResult = envelope.EngineResult with { Decision = "DENY" } };
+        ThrowsEngine2("EVIDENCE_DIGEST_MISMATCH", () => fixture.Registry.Append(envelope));
+    }
+
+    private static void Engine2AuditRejectsSnapshotBindingModification()
+    {
+        using var fixture = new Engine2AuditFixture();
+        var envelope = Engine2Envelope();
+        envelope = envelope with { SnapshotBinding = envelope.SnapshotBinding with { KnowledgeSnapshotRef = "tampered" } };
+        ThrowsEngine2("EVIDENCE_DIGEST_MISMATCH", () => fixture.Registry.Append(envelope));
+    }
+
+    private static void Engine2AuditRejectsDuplicateConflict()
+    {
+        using var fixture = new Engine2AuditFixture();
+        var envelope = Engine2Envelope();
+        fixture.Registry.Append(envelope);
+        Equal(envelope, fixture.Registry.Append(envelope));
+        var conflict = Engine2Envelope("audit-other") with { IdempotencyKey = envelope.IdempotencyKey };
+        ThrowsEngine2("IDEMPOTENCY_CONFLICT", () => fixture.Registry.Append(conflict));
+    }
+
+    private static void Engine2AuditPersistenceFailsClosed()
+    {
+        var fixture = new Engine2AuditFixture();
+        fixture.Registry.Dispose();
+        var exception = ThrowsEngine2("AUDIT_PERSISTENCE_FAILED", () => fixture.Registry.Append(Engine2Envelope()));
+        Equal("RETRY_ONLY_WHEN_NO_EXTERNAL_SIDE_EFFECT_AND_IDEMPOTENCY_IS_PROVEN", exception.RetryPreconditions);
+        False(exception.Retryable);
+        fixture.Dispose();
+    }
+
+    private static void Engine2AuditRejectsUnknownErrorCode()
+    {
+        using var fixture = new Engine2AuditFixture();
+        var envelope = Engine2Envelope() with { ErrorCode = "UNREGISTERED" };
+        ThrowsEngine2("PROTOCOL_OBJECT_UNTRUSTED", () => fixture.Registry.Append(envelope));
+    }
+
+    private static void Engine2AuditRejectsUntrustedProtocolObject()
+    {
+        using var fixture = new Engine2AuditFixture();
+        var envelope = Engine2Envelope() with { ProtocolObjectJson = "{\"descriptor\":1.5}" };
+        ThrowsEngine2("PROTOCOL_OBJECT_UNTRUSTED", () => fixture.Registry.Append(envelope));
+    }
+
+    private static void Engine2AuditReplayRejectsPersistedTampering()
+    {
+        using var fixture = new Engine2AuditFixture();
+        var envelope = Engine2Envelope();
+        fixture.Registry.Append(envelope);
+        var field = typeof(Engine2AuditRegistry).GetField("database", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+        var database = field.GetValue(fixture.Registry)!;
+        var executeScript = database.GetType().GetMethod("ExecuteScript", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+        executeScript.Invoke(database, ["UPDATE kg_engine2_audit SET envelope_payload = replace(envelope_payload, 'ALLOW', 'DENY');"]);
+        ThrowsEngine2("EVIDENCE_DIGEST_MISMATCH", () => fixture.Registry.Replay(envelope.AuditEvent.EventId));
+    }
+
+    private static void Engine2CanonicalDigestsMatchEngine()
+    {
+        var envelope = Engine2Envelope();
+        Equal("D461CCD4ECC711B0EF6320082CE929EBD14BEA76EA34CFF4322903A01788B127", envelope.ProtocolObjectDigest);
+        Equal("A890947FDE7EE2E0C276B3EFFD49A65E3E6C4434B8E362CFAE23AD82DCCED335", envelope.EngineResult.ResultDigest);
+        Equal("70082C5E090A84FC2939CFE96C7F5B4454352D7AC261435C571E521CE57C2615", envelope.AuditEvent.InputDigest);
+        Equal("FA2EC087C0E59E68F2740B2DD1A1032B835210D35F48653B70F208EDE72F2857", envelope.AuditEventDigest);
+    }
+
+    private static Engine2AuditEnvelope Engine2Envelope(string eventId = "audit-req-001")
+    {
+        const string protocolJson = "{\"descriptor\":\"offline-fixture\"}";
+        var protocolDigest = Engine2CanonicalJson.ComputeSha256(protocolJson);
+        var binding = new Engine2SnapshotBinding(
+            "11c6f83593a327457940c6b5832aa03aa50713ee",
+            "OBSERVER_NOT_BOUND_LOCAL_KG_TEST",
+            "f264357b57339faa9129a067a225d4825b166c82",
+            "engine2-status.schema.json@725e080cee8a61c94f8c0581b19ce05791013625",
+            "fixture-knowledge-snapshot");
+        var result = new Engine2RetrievalResult("req-001", "GEN2", "ALLOW", "FIXTURE_EXPECTATION_ONLY", "", "PASS", "");
+        var resultDigest = Engine2AuditRegistry.ComputeResultDigest(result);
+        result = result with { ResultDigest = resultDigest, OriginalEngineResultDigest = resultDigest };
+        var placeholder = new Engine2AuditEnvelope(
+            "idem-001", protocolJson, protocolDigest, binding, result,
+            new Engine2AuditEvent(eventId, "req-001", "ENGINE_RETRIEVAL", "ALLOW", "NONE", "", resultDigest),
+            "", "NONE");
+        var inputDigest = Engine2AuditRegistry.ComputeRequestDigest(placeholder);
+        var audit = placeholder.AuditEvent with { InputDigest = inputDigest };
+        return placeholder with { AuditEvent = audit, AuditEventDigest = Engine2CanonicalJson.ComputeSha256(audit) };
+    }
+
+    private static Engine2AuditRejectedException ThrowsEngine2(string errorCode, Action action)
+    {
+        try
+        {
+            action();
+        }
+        catch (Engine2AuditRejectedException exception)
+        {
+            Equal(errorCode, exception.ErrorCode);
+            return exception;
+        }
+        throw new InvalidOperationException($"Expected Engine2AuditRejectedException with code {errorCode}.");
+    }
+
+    private sealed class Engine2AuditFixture : IDisposable
+    {
+        private readonly string root = Path.Combine(Path.GetTempPath(), $"fskg-engine2-{Guid.NewGuid():N}");
+        internal Engine2AuditRegistry Registry { get; }
+
+        internal Engine2AuditFixture()
+        {
+            Directory.CreateDirectory(root);
+            Registry = new Engine2AuditRegistry(Path.Combine(root, "engine2.sqlite3"));
+        }
+
+        public void Dispose()
+        {
+            Registry.Dispose();
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
     }
 
     private static void Team03AdapterRejectsFailedSnapshot()
