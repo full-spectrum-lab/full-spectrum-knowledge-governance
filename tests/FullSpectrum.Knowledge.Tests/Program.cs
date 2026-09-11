@@ -159,6 +159,7 @@ internal static class Program
         ,("engine2 audit rejects untrusted protocol objects", Engine2AuditRejectsUntrustedProtocolObject)
         ,("engine2 audit replay rejects persisted row tampering", Engine2AuditReplayRejectsPersistedTampering)
         ,("engine2 canonical digests match published Engine implementation", Engine2CanonicalDigestsMatchEngine)
+        ,..FdeTrial001Tests.Cases
     ];
 
     private static int Main()

@@ -1,0 +1,933 @@
+diff --git a/tests/FullSpectrum.Knowledge.Tests/Program.cs b/tests/FullSpectrum.Knowledge.Tests/Program.cs
+index 4a242a3..125e1f3 100644
+--- a/tests/FullSpectrum.Knowledge.Tests/Program.cs
++++ b/tests/FullSpectrum.Knowledge.Tests/Program.cs
+@@ -159,6 +159,7 @@ internal static class Program
+         ,("engine2 audit rejects untrusted protocol objects", Engine2AuditRejectsUntrustedProtocolObject)
+         ,("engine2 audit replay rejects persisted row tampering", Engine2AuditReplayRejectsPersistedTampering)
+         ,("engine2 canonical digests match published Engine implementation", Engine2CanonicalDigestsMatchEngine)
++        ,..FdeTrial001Tests.Cases
+     ];
+ 
+     private static int Main()
+diff --git a/src/FullSpectrum.Knowledge.Storage/FdeTrial001Registry.cs b/src/FullSpectrum.Knowledge.Storage/FdeTrial001Registry.cs
+new file mode 100644
+index 0000000..8bddf22
+--- /dev/null
++++ b/src/FullSpectrum.Knowledge.Storage/FdeTrial001Registry.cs
+@@ -0,0 +1,504 @@
++using System.Globalization;
++using System.Text.Json;
++using FullSpectrum.Knowledge.Contracts;
++
++namespace FullSpectrum.Knowledge.Storage;
++
++public sealed record FdePolicySnapshot(
++    string CaseId,
++    string FixtureVersion,
++    string SnapshotRef,
++    string? ParentSnapshotRef,
++    string PolicyId,
++    string PolicyVersion,
++    string Status,
++    string SourceRef,
++    string SourceDigestScope,
++    string SourceContentSha256,
++    string PolicyDocumentSha256);
++
++public sealed record FdeEngineAuditRecord(
++    string EventId,
++    string CaseId,
++    string FixtureVersion,
++    string KnowledgeSnapshotRef,
++    string EngineInputJson,
++    string EngineInputSha256,
++    string EngineResultJson,
++    string EngineResultSha256,
++    string OriginalEngineResultSha256,
++    DateTimeOffset OccurredAtUtc);
++
++public sealed record FdeHumanDecisionEvent(
++    string EventId,
++    string CaseId,
++    string FixtureVersion,
++    string EngineAuditEventId,
++    string KnowledgeSnapshotRef,
++    string PolicyId,
++    string PolicyVersion,
++    string Decision,
++    string ResultingSnapshotState,
++    string ActorId,
++    string AuthorityRef,
++    IReadOnlyList<string> AuthorityScope,
++    DateTimeOffset AuthorityIssuedAtUtc,
++    DateTimeOffset AuthorityExpiresAtUtc,
++    DateTimeOffset OccurredAtUtc);
++
++public sealed record FdeActionOutcomeRecord(
++    string EventId,
++    string CaseId,
++    string FixtureVersion,
++    string HumanDecisionEventId,
++    string Outcome,
++    string ActionType,
++    string TargetRef,
++    string ActionIdempotencyKey,
++    string InputSha256,
++    string ResultSha256,
++    string? ReceiptJson,
++    DateTimeOffset OccurredAtUtc);
++
++public sealed record FdeTrial001Replay(
++    string CaseId,
++    string FixtureVersion,
++    IReadOnlyList<FdePolicySnapshot> Snapshots,
++    FdeEngineAuditRecord EngineAudit,
++    FdeHumanDecisionEvent HumanDecision,
++    FdeActionOutcomeRecord ActionOutcome,
++    string CandidateState,
++    string ReplaySha256);
++
++public sealed class FdeTrial001RejectedException(
++    string errorCode,
++    string message,
++    string retryPreconditions = "NONE",
++    Exception? innerException = null) : InvalidOperationException(message, innerException)
++{
++    public string ErrorCode { get; } = errorCode;
++    public bool ActionAllowed => false;
++    public string RetryPreconditions { get; } = retryPreconditions;
++}
++
++/// <summary>
++/// Local-only, append-only persistence and replay boundary for FDE-TRIAL-001.
++/// It stores governed facts and receipts but never decides refunds or invokes an action sink.
++/// </summary>
++public sealed class FdeTrial001Registry : IDisposable
++{
++    public const string CaseId = "FDE-TRIAL-001";
++    public const string FixtureVersion = "0.1.0-rc";
++
++    private const string SnapshotEvent = "POLICY_SNAPSHOT_PERSISTED";
++    private const string EngineAuditEvent = "ENGINE_AUDIT_PERSISTED";
++    private const string HumanDecisionEvent = "HUMAN_DECISION_APPENDED";
++    private const string ActionOutcomeEvent = "ACTION_OUTCOME_PERSISTED";
++
++    private readonly SqliteDatabase database;
++
++    public FdeTrial001Registry(string databasePath)
++    {
++        database = new SqliteDatabase(databasePath);
++        database.ExecuteScript("""
++            CREATE TABLE IF NOT EXISTS kg_fde_trial_001_events (
++                sequence INTEGER PRIMARY KEY AUTOINCREMENT,
++                case_id TEXT NOT NULL,
++                fixture_version TEXT NOT NULL,
++                event_id TEXT NOT NULL UNIQUE,
++                event_type TEXT NOT NULL,
++                idempotency_key TEXT NOT NULL UNIQUE,
++                payload TEXT NOT NULL,
++                previous_digest TEXT NOT NULL,
++                event_digest TEXT NOT NULL
++            );
++            CREATE INDEX IF NOT EXISTS ix_kg_fde_trial_001_case
++                ON kg_fde_trial_001_events(case_id, fixture_version, sequence);
++            """);
++    }
++
++    public FdePolicySnapshot AppendSnapshot(FdePolicySnapshot snapshot)
++    {
++        ValidateIdentity(snapshot.CaseId, snapshot.FixtureVersion);
++        Require(snapshot.SnapshotRef, nameof(snapshot.SnapshotRef));
++        Require(snapshot.PolicyId, nameof(snapshot.PolicyId));
++        Require(snapshot.PolicyVersion, nameof(snapshot.PolicyVersion));
++        Require(snapshot.SourceRef, nameof(snapshot.SourceRef));
++        Require(snapshot.SourceDigestScope, nameof(snapshot.SourceDigestScope));
++        RequireSha256(snapshot.SourceContentSha256, nameof(snapshot.SourceContentSha256));
++        RequireSha256(snapshot.PolicyDocumentSha256, nameof(snapshot.PolicyDocumentSha256));
++
++        if (snapshot.Status is not ("ACTIVE" or "PROPOSED"))
++            throw Reject("PROTOCOL_OBJECT_UNTRUSTED", "Snapshot status must be ACTIVE or PROPOSED.");
++
++        if (snapshot.Status == "ACTIVE" && snapshot.ParentSnapshotRef is not null)
++            throw Reject("PROTOCOL_OBJECT_UNTRUSTED", "The frozen parent snapshot must not declare a parent.");
++
++        if (snapshot.Status == "PROPOSED")
++        {
++            Require(snapshot.ParentSnapshotRef, nameof(snapshot.ParentSnapshotRef));
++            var parent = FindSnapshot(snapshot.CaseId, snapshot.FixtureVersion, snapshot.ParentSnapshotRef!);
++            if (parent is null)
++                throw Reject("REPLAY_DEPENDENCY_MISSING", "The candidate snapshot parent is not persisted.");
++            if (parent.Status != "ACTIVE" || parent.PolicyId != snapshot.PolicyId)
++                throw Reject("PROTOCOL_OBJECT_UNTRUSTED", "The candidate snapshot parent binding is invalid.");
++        }
++
++        return Append(SnapshotEvent, $"snapshot:{snapshot.SnapshotRef}", $"snapshot:{snapshot.SnapshotRef}", snapshot);
++    }
++
++    public FdeEngineAuditRecord AppendEngineAudit(FdeEngineAuditRecord audit)
++    {
++        ValidateIdentity(audit.CaseId, audit.FixtureVersion);
++        Require(audit.EventId, nameof(audit.EventId));
++        Require(audit.KnowledgeSnapshotRef, nameof(audit.KnowledgeSnapshotRef));
++        RequireCanonicalDigest(audit.EngineInputJson, audit.EngineInputSha256, nameof(audit.EngineInputSha256));
++        RequireCanonicalDigest(audit.EngineResultJson, audit.EngineResultSha256, nameof(audit.EngineResultSha256));
++        if (!Matches(audit.EngineResultSha256, audit.OriginalEngineResultSha256))
++            throw Reject("EVIDENCE_DIGEST_MISMATCH", "Engine result does not match its immutable original digest.");
++
++        var candidate = FindSnapshot(audit.CaseId, audit.FixtureVersion, audit.KnowledgeSnapshotRef);
++        if (candidate is null || candidate.Status != "PROPOSED")
++            throw Reject("REPLAY_DEPENDENCY_MISSING", "The Engine audit is not bound to a persisted candidate snapshot.");
++
++        return Append(EngineAuditEvent, audit.EventId, $"engine-audit:{audit.EventId}", audit);
++    }
++
++    public FdeHumanDecisionEvent AppendHumanDecision(FdeHumanDecisionEvent decision)
++    {
++        ValidateIdentity(decision.CaseId, decision.FixtureVersion);
++        Require(decision.EventId, nameof(decision.EventId));
++        Require(decision.EngineAuditEventId, nameof(decision.EngineAuditEventId));
++        Require(decision.KnowledgeSnapshotRef, nameof(decision.KnowledgeSnapshotRef));
++        Require(decision.PolicyId, nameof(decision.PolicyId));
++        Require(decision.PolicyVersion, nameof(decision.PolicyVersion));
++        Require(decision.ActorId, nameof(decision.ActorId));
++        Require(decision.AuthorityRef, nameof(decision.AuthorityRef));
++
++        if (decision.Decision is not ("APPROVE" or "REJECT"))
++            throw Reject("PROTOCOL_OBJECT_UNTRUSTED", "Human decision must be APPROVE or REJECT.");
++        var expectedState = decision.Decision == "APPROVE" ? "ACTIVE" : "REJECTED";
++        if (decision.ResultingSnapshotState != expectedState)
++            throw Reject("PROTOCOL_OBJECT_UNTRUSTED", "Human decision does not match its appended snapshot lifecycle state.");
++        if (decision.AuthorityIssuedAtUtc >= decision.AuthorityExpiresAtUtc ||
++            decision.OccurredAtUtc < decision.AuthorityIssuedAtUtc ||
++            decision.OccurredAtUtc > decision.AuthorityExpiresAtUtc)
++            throw Reject("CREDENTIAL_EXPIRED", "Human authority is not valid at the decision time.");
++
++        var requiredScope = decision.Decision == "APPROVE"
++            ? "APPROVE_POLICY_ACTIVATION"
++            : "REJECT_POLICY_ACTIVATION";
++        if (!decision.AuthorityScope.Contains(requiredScope, StringComparer.Ordinal))
++            throw Reject("PROTOCOL_OBJECT_UNTRUSTED", "Human authority does not cover the requested decision.");
++
++        var audit = Find<FdeEngineAuditRecord>(decision.CaseId, decision.FixtureVersion, EngineAuditEvent, decision.EngineAuditEventId);
++        if (audit is null || audit.KnowledgeSnapshotRef != decision.KnowledgeSnapshotRef)
++            throw Reject("REPLAY_DEPENDENCY_MISSING", "Human decision is not bound to the persisted Engine audit and candidate snapshot.");
++        if (decision.OccurredAtUtc < audit.OccurredAtUtc)
++            throw Reject("PROTOCOL_OBJECT_UNTRUSTED", "Human decision cannot predate the persisted Engine audit.");
++        var candidate = FindSnapshot(decision.CaseId, decision.FixtureVersion, decision.KnowledgeSnapshotRef);
++        if (candidate is null || candidate.PolicyId != decision.PolicyId || candidate.PolicyVersion != decision.PolicyVersion)
++            throw Reject("PROTOCOL_OBJECT_UNTRUSTED", "Human authority policy binding does not match the candidate snapshot.");
++
++        var prior = ReadEvents(decision.CaseId, decision.FixtureVersion)
++            .Where(row => row.EventType == HumanDecisionEvent)
++            .Select(row => Deserialize<FdeHumanDecisionEvent>(row.Payload))
++            .SingleOrDefault(item => item.KnowledgeSnapshotRef == decision.KnowledgeSnapshotRef);
++        if (prior is not null && Engine2CanonicalJson.Serialize(prior) != Engine2CanonicalJson.Serialize(decision))
++            throw Reject("IDEMPOTENCY_CONFLICT", "The candidate snapshot already has a different human decision.");
++
++        return Append(HumanDecisionEvent, decision.EventId, $"human-decision:{decision.KnowledgeSnapshotRef}", decision);
++    }
++
++    public FdeActionOutcomeRecord AppendActionOutcome(FdeActionOutcomeRecord outcome)
++    {
++        ValidateIdentity(outcome.CaseId, outcome.FixtureVersion);
++        Require(outcome.EventId, nameof(outcome.EventId));
++        Require(outcome.HumanDecisionEventId, nameof(outcome.HumanDecisionEventId));
++        Require(outcome.ActionType, nameof(outcome.ActionType));
++        Require(outcome.TargetRef, nameof(outcome.TargetRef));
++        Require(outcome.ActionIdempotencyKey, nameof(outcome.ActionIdempotencyKey));
++        RequireSha256(outcome.InputSha256, nameof(outcome.InputSha256));
++        RequireSha256(outcome.ResultSha256, nameof(outcome.ResultSha256));
++
++        var decision = Find<FdeHumanDecisionEvent>(outcome.CaseId, outcome.FixtureVersion, HumanDecisionEvent, outcome.HumanDecisionEventId);
++        if (decision is null)
++            throw Reject("REPLAY_DEPENDENCY_MISSING", "Action outcome is not bound to a persisted human decision.");
++        if (outcome.OccurredAtUtc < decision.OccurredAtUtc)
++            throw Reject("PROTOCOL_OBJECT_UNTRUSTED", "Action outcome cannot predate its human decision.");
++
++        if (outcome.Outcome == "ACTION_RECEIPT")
++        {
++            if (decision.Decision != "APPROVE" ||
++                !decision.AuthorityScope.Contains("AUTHORIZE_LOCAL_FAKE_ACTION", StringComparer.Ordinal))
++                throw Reject("PROTOCOL_OBJECT_UNTRUSTED", "An action receipt requires persisted local-fake-action approval.");
++            Require(outcome.ReceiptJson, nameof(outcome.ReceiptJson));
++            RequireCanonicalDigest(outcome.ReceiptJson!, outcome.ResultSha256, nameof(outcome.ResultSha256));
++        }
++        else if (outcome.Outcome == "NO_ACTION")
++        {
++            if (outcome.ReceiptJson is not null)
++                throw Reject("PROTOCOL_OBJECT_UNTRUSTED", "NO_ACTION must not contain an action receipt.");
++        }
++        else
++        {
++            throw Reject("PROTOCOL_OBJECT_UNTRUSTED", "Action outcome must be ACTION_RECEIPT or NO_ACTION.");
++        }
++
++        return Append(
++            ActionOutcomeEvent,
++            outcome.EventId,
++            $"action-outcome:{outcome.ActionIdempotencyKey}",
++            outcome,
++            "RECONCILE_ACTION_IDEMPOTENCY_KEY_BEFORE_ANY_RETRY_DECISION");
++    }
++
++    public FdeTrial001Replay Replay(string caseId = CaseId, string fixtureVersion = FixtureVersion)
++    {
++        ValidateIdentity(caseId, fixtureVersion);
++        var rows = ReadEvents(caseId, fixtureVersion);
++        try
++        {
++            var snapshots = rows.Where(row => row.EventType == SnapshotEvent)
++                .Select(row => Deserialize<FdePolicySnapshot>(row.Payload)).ToArray();
++            var parent = snapshots.SingleOrDefault(item => item.Status == "ACTIVE" && item.ParentSnapshotRef is null)
++                ?? throw Reject("REPLAY_DEPENDENCY_MISSING", "The frozen parent snapshot is missing.");
++            var candidate = snapshots.SingleOrDefault(item => item.Status == "PROPOSED")
++                ?? throw Reject("REPLAY_DEPENDENCY_MISSING", "The candidate snapshot is missing.");
++            if (candidate.ParentSnapshotRef != parent.SnapshotRef || candidate.PolicyId != parent.PolicyId)
++                throw Reject("EVIDENCE_DIGEST_MISMATCH", "Snapshot parent relationship is invalid during replay.");
++
++            var audit = Single<FdeEngineAuditRecord>(rows, EngineAuditEvent);
++            RequireCanonicalDigest(audit.EngineInputJson, audit.EngineInputSha256, nameof(audit.EngineInputSha256));
++            RequireCanonicalDigest(audit.EngineResultJson, audit.EngineResultSha256, nameof(audit.EngineResultSha256));
++            if (!Matches(audit.EngineResultSha256, audit.OriginalEngineResultSha256) ||
++                audit.KnowledgeSnapshotRef != candidate.SnapshotRef)
++                throw Reject("EVIDENCE_DIGEST_MISMATCH", "Engine audit is not immutable or is not bound to the candidate snapshot.");
++
++            var decision = Single<FdeHumanDecisionEvent>(rows, HumanDecisionEvent);
++            ValidateReplayedDecision(decision, audit);
++            if (decision.PolicyId != candidate.PolicyId || decision.PolicyVersion != candidate.PolicyVersion)
++                throw Reject("EVIDENCE_DIGEST_MISMATCH", "Human decision policy binding is invalid during replay.");
++            var action = Single<FdeActionOutcomeRecord>(rows, ActionOutcomeEvent);
++            ValidateReplayedAction(action, decision);
++
++            var state = decision.Decision == "APPROVE" ? "ACTIVE" : "REJECTED";
++            var replayDigest = Engine2CanonicalJson.ComputeSha256(new
++            {
++                case_id = caseId,
++                fixture_version = fixtureVersion,
++                event_digests = rows.Select(row => row.EventDigest).ToArray(),
++                candidate_state = state
++            });
++            return new FdeTrial001Replay(caseId, fixtureVersion, snapshots, audit, decision, action, state, replayDigest);
++        }
++        catch (FdeTrial001RejectedException)
++        {
++            throw;
++        }
++        catch (Exception exception)
++        {
++            throw Reject("EVIDENCE_DIGEST_MISMATCH", "FDE-TRIAL-001 replay validation failed.", innerException: exception);
++        }
++    }
++
++    public static string ComputeCanonicalSha256(string json) => Engine2CanonicalJson.ComputeSha256(json);
++
++    private T Append<T>(string eventType, string eventId, string idempotencyKey, T value, string persistenceRetry = "NO_ACTION_RETRY_ONLY_AFTER_PERSISTENCE_RECOVERY")
++    {
++        var payload = Engine2CanonicalJson.Serialize(value);
++        try
++        {
++            var existing = database.Query(
++                "SELECT event_type, payload FROM kg_fde_trial_001_events WHERE event_id = ? OR idempotency_key = ?",
++                row => (EventType: row.Text(0), Payload: row.Text(1)), eventId, idempotencyKey);
++            if (existing.Count > 0)
++            {
++                if (existing.All(row => row.EventType == eventType && row.Payload == payload)) return value;
++                throw Reject("IDEMPOTENCY_CONFLICT", "FDE event identity was reused with different content.");
++            }
++
++            return database.Transaction(() =>
++            {
++                var previous = database.Query(
++                    "SELECT event_digest FROM kg_fde_trial_001_events WHERE case_id = ? AND fixture_version = ? ORDER BY sequence DESC LIMIT 1",
++                    row => row.Text(0), CaseId, FixtureVersion).SingleOrDefault() ?? string.Empty;
++                var digest = EventDigest(CaseId, FixtureVersion, eventId, eventType, idempotencyKey, payload, previous);
++                database.Execute(
++                    "INSERT INTO kg_fde_trial_001_events(case_id, fixture_version, event_id, event_type, idempotency_key, payload, previous_digest, event_digest) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
++                    CaseId, FixtureVersion, eventId, eventType, idempotencyKey, payload, previous, digest);
++                return value;
++            });
++        }
++        catch (FdeTrial001RejectedException)
++        {
++            throw;
++        }
++        catch (Exception exception)
++        {
++            throw Reject("AUDIT_PERSISTENCE_FAILED", "Required FDE persistence failed.", persistenceRetry, exception);
++        }
++    }
++
++    private IReadOnlyList<StoredEvent> ReadEvents(string caseId, string fixtureVersion)
++    {
++        IReadOnlyList<StoredEvent> rows;
++        try
++        {
++            rows = database.Query(
++                "SELECT sequence, event_id, event_type, idempotency_key, payload, previous_digest, event_digest FROM kg_fde_trial_001_events WHERE case_id = ? AND fixture_version = ? ORDER BY sequence",
++                row => new StoredEvent(row.Int64(0), row.Text(1), row.Text(2), row.Text(3), row.Text(4), row.Text(5), row.Text(6)),
++                caseId, fixtureVersion);
++        }
++        catch (Exception exception)
++        {
++            throw Reject("AUDIT_PERSISTENCE_FAILED", "Required FDE replay storage could not be read.", innerException: exception);
++        }
++
++        var previous = string.Empty;
++        foreach (var row in rows)
++        {
++            var expected = EventDigest(caseId, fixtureVersion, row.EventId, row.EventType, row.IdempotencyKey, row.Payload, previous);
++            if (!Matches(row.PreviousDigest, previous) || !Matches(row.EventDigest, expected))
++                throw Reject("EVIDENCE_DIGEST_MISMATCH", "Persisted FDE event chain integrity check failed.");
++            previous = row.EventDigest;
++        }
++        return rows;
++    }
++
++    private FdePolicySnapshot? FindSnapshot(string caseId, string fixtureVersion, string snapshotRef) =>
++        ReadEvents(caseId, fixtureVersion)
++            .Where(row => row.EventType == SnapshotEvent)
++            .Select(row => Deserialize<FdePolicySnapshot>(row.Payload))
++            .SingleOrDefault(item => item.SnapshotRef == snapshotRef);
++
++    private T? Find<T>(string caseId, string fixtureVersion, string eventType, string eventId) where T : class =>
++        ReadEvents(caseId, fixtureVersion)
++            .Where(row => row.EventType == eventType && row.EventId == eventId)
++            .Select(row => Deserialize<T>(row.Payload))
++            .SingleOrDefault();
++
++    private static T Single<T>(IReadOnlyList<StoredEvent> rows, string eventType) where T : class =>
++        rows.Where(row => row.EventType == eventType)
++            .Select(row => Deserialize<T>(row.Payload))
++            .SingleOrDefault()
++        ?? throw Reject("REPLAY_DEPENDENCY_MISSING", $"Required replay event {eventType} is missing.");
++
++    private static void ValidateReplayedDecision(FdeHumanDecisionEvent decision, FdeEngineAuditRecord audit)
++    {
++        if (decision.EngineAuditEventId != audit.EventId || decision.KnowledgeSnapshotRef != audit.KnowledgeSnapshotRef)
++            throw Reject("EVIDENCE_DIGEST_MISMATCH", "Human decision replay binding is invalid.");
++        if (decision.OccurredAtUtc < audit.OccurredAtUtc)
++            throw Reject("EVIDENCE_DIGEST_MISMATCH", "Human decision predates the Engine audit during replay.");
++        if (decision.Decision is not ("APPROVE" or "REJECT"))
++            throw Reject("EVIDENCE_DIGEST_MISMATCH", "Human decision replay value is invalid.");
++        var expectedState = decision.Decision == "APPROVE" ? "ACTIVE" : "REJECTED";
++        if (decision.ResultingSnapshotState != expectedState)
++            throw Reject("EVIDENCE_DIGEST_MISMATCH", "Human decision snapshot state is invalid during replay.");
++        var requiredScope = decision.Decision == "APPROVE" ? "APPROVE_POLICY_ACTIVATION" : "REJECT_POLICY_ACTIVATION";
++        if (!decision.AuthorityScope.Contains(requiredScope, StringComparer.Ordinal) ||
++            decision.AuthorityIssuedAtUtc >= decision.AuthorityExpiresAtUtc ||
++            decision.OccurredAtUtc < decision.AuthorityIssuedAtUtc ||
++            decision.OccurredAtUtc > decision.AuthorityExpiresAtUtc)
++            throw Reject("EVIDENCE_DIGEST_MISMATCH", "Human decision authority is invalid during replay.");
++    }
++
++    private static void ValidateReplayedAction(FdeActionOutcomeRecord action, FdeHumanDecisionEvent decision)
++    {
++        if (action.HumanDecisionEventId != decision.EventId)
++            throw Reject("EVIDENCE_DIGEST_MISMATCH", "Action outcome is not bound to the human decision.");
++        if (action.OccurredAtUtc < decision.OccurredAtUtc)
++            throw Reject("EVIDENCE_DIGEST_MISMATCH", "Action outcome predates its human decision.");
++        RequireSha256(action.InputSha256, nameof(action.InputSha256));
++        RequireSha256(action.ResultSha256, nameof(action.ResultSha256));
++        if (action.Outcome == "ACTION_RECEIPT")
++        {
++            if (decision.Decision != "APPROVE" ||
++                !decision.AuthorityScope.Contains("AUTHORIZE_LOCAL_FAKE_ACTION", StringComparer.Ordinal) ||
++                action.ReceiptJson is null)
++                throw Reject("EVIDENCE_DIGEST_MISMATCH", "Action receipt is not backed by approval.");
++            RequireCanonicalDigest(action.ReceiptJson, action.ResultSha256, nameof(action.ResultSha256));
++        }
++        else if (action.Outcome != "NO_ACTION" || action.ReceiptJson is not null)
++        {
++            throw Reject("EVIDENCE_DIGEST_MISMATCH", "Action outcome is invalid during replay.");
++        }
++    }
++
++    private static string EventDigest(string caseId, string fixtureVersion, string eventId, string eventType, string idempotencyKey, string payload, string previousDigest) =>
++        Engine2CanonicalJson.ComputeSha256(new
++        {
++            case_id = caseId,
++            fixture_version = fixtureVersion,
++            event_id = eventId,
++            event_type = eventType,
++            idempotency_key = idempotencyKey,
++            payload,
++            previous_digest = previousDigest
++        });
++
++    private static T Deserialize<T>(string payload)
++    {
++        try
++        {
++            return JsonSerializer.Deserialize<T>(payload, KnowledgeJson.Options)
++                ?? throw new JsonException("Persisted FDE event payload is null.");
++        }
++        catch (JsonException exception)
++        {
++            throw Reject("EVIDENCE_DIGEST_MISMATCH", "Persisted FDE event payload is invalid.", innerException: exception);
++        }
++    }
++
++    private static void ValidateIdentity(string caseId, string fixtureVersion)
++    {
++        if (caseId != CaseId || fixtureVersion != FixtureVersion)
++            throw Reject("PROTOCOL_OBJECT_UNTRUSTED", "FDE adapter only accepts the frozen FDE-TRIAL-001 0.1.0-rc identity.");
++    }
++
++    private static void RequireCanonicalDigest(string json, string digest, string field)
++    {
++        RequireSha256(digest, field);
++        try
++        {
++            if (!Matches(Engine2CanonicalJson.ComputeSha256(json), digest))
++                throw Reject("EVIDENCE_DIGEST_MISMATCH", $"{field} does not match its canonical JSON payload.");
++        }
++        catch (JsonException exception)
++        {
++            throw Reject("PROTOCOL_OBJECT_UNTRUSTED", $"{field} payload is not valid canonical JSON input.", innerException: exception);
++        }
++    }
++
++    private static void RequireSha256(string value, string field)
++    {
++        if (value.Length != 64 || value.Any(character => !Uri.IsHexDigit(character)))
++            throw Reject("PROTOCOL_OBJECT_UNTRUSTED", $"{field} must be a SHA-256 hexadecimal digest.");
++    }
++
++    private static bool Matches(string left, string right) =>
++        string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
++
++    private static void Require(string? value, string field)
++    {
++        if (string.IsNullOrWhiteSpace(value))
++            throw Reject("PROTOCOL_OBJECT_UNTRUSTED", $"Required FDE field '{field}' is empty.");
++    }
++
++    private static FdeTrial001RejectedException Reject(
++        string code,
++        string message,
++        string retryPreconditions = "NONE",
++        Exception? innerException = null) => new(code, message, retryPreconditions, innerException);
++
++    public void Dispose() => database.Dispose();
++
++    private sealed record StoredEvent(
++        long Sequence,
++        string EventId,
++        string EventType,
++        string IdempotencyKey,
++        string Payload,
++        string PreviousDigest,
++        string EventDigest);
++}
+diff --git a/tests/FullSpectrum.Knowledge.Tests/FdeTrial001Tests.cs b/tests/FullSpectrum.Knowledge.Tests/FdeTrial001Tests.cs
+new file mode 100644
+index 0000000..ad5e8bd
+--- /dev/null
++++ b/tests/FullSpectrum.Knowledge.Tests/FdeTrial001Tests.cs
+@@ -0,0 +1,405 @@
++using System.Reflection;
++using FullSpectrum.Knowledge.Storage;
++
++namespace FullSpectrum.Knowledge.Tests;
++
++internal static class FdeTrial001Tests
++{
++    internal static IReadOnlyList<(string Name, Action Test)> Cases { get; } =
++    [
++        ("FDE trial persists approve chain and replays after SQLite reopen", ApproveChainReplaysAfterReopen),
++        ("FDE trial persists rejection as append-only NO_ACTION", RejectChainReplaysNoAction),
++        ("FDE trial candidate snapshot requires persisted active parent", CandidateRequiresParent),
++        ("FDE trial Engine audit requires persisted candidate snapshot", EngineAuditRequiresCandidate),
++        ("FDE trial rejects mutation of immutable Engine result", EngineResultMutationRejected),
++        ("FDE trial rejects expired human authority", ExpiredAuthorityRejected),
++        ("FDE trial rejects human decision before Engine audit", HumanDecisionBeforeAuditRejected),
++        ("FDE trial rejects human authority outside decision scope", AuthorityScopeRejected),
++        ("FDE trial rejects human authority bound to another policy", AuthorityPolicyBindingRejected),
++        ("FDE trial human decision is append-only and idempotent", HumanDecisionAppendOnly),
++        ("FDE trial action receipt requires persisted approval", ActionReceiptRequiresApproval),
++        ("FDE trial action outcome enforces idempotency", ActionOutcomeIdempotency),
++        ("FDE trial pre-action audit persistence failure is NO_ACTION", PreActionAuditPersistenceFailsClosed),
++        ("FDE trial approval persistence failure is NO_ACTION", ApprovalPersistenceFailsClosed),
++        ("FDE trial receipt persistence failure requires reconciliation", ReceiptPersistenceRequiresReconciliation),
++        ("FDE trial replay rejects persisted snapshot tampering", SnapshotTamperRejected),
++        ("FDE trial replay rejects persisted Engine audit tampering", EngineAuditTamperRejected),
++        ("FDE trial replay rejects persisted approval tampering", ApprovalTamperRejected),
++        ("FDE trial replay rejects persisted action receipt tampering", ActionReceiptTamperRejected)
++    ];
++
++    private static void ApproveChainReplaysAfterReopen()
++    {
++        using var fixture = new Fixture();
++        var expectedResult = fixture.EngineAudit().EngineResultJson;
++        fixture.AppendSnapshotsAndAudit();
++        var decision = fixture.Approval();
++        fixture.Registry.AppendHumanDecision(decision);
++        fixture.Registry.AppendActionOutcome(fixture.Receipt(decision.EventId));
++        fixture.Reopen();
++
++        var replay = fixture.Registry.Replay();
++        Equal("ACTIVE", replay.CandidateState);
++        Equal(2, replay.Snapshots.Count);
++        Equal(expectedResult, replay.EngineAudit.EngineResultJson);
++        Equal("ACTION_RECEIPT", replay.ActionOutcome.Outcome);
++        IsSha256(replay.ReplaySha256);
++    }
++
++    private static void RejectChainReplaysNoAction()
++    {
++        using var fixture = new Fixture();
++        fixture.AppendSnapshotsAndAudit();
++        var decision = fixture.Rejection();
++        fixture.Registry.AppendHumanDecision(decision);
++        fixture.Registry.AppendActionOutcome(fixture.NoAction(decision.EventId));
++        fixture.Reopen();
++
++        var replay = fixture.Registry.Replay();
++        Equal("REJECTED", replay.CandidateState);
++        Equal("NO_ACTION", replay.ActionOutcome.Outcome);
++        Equal<string?>(null, replay.ActionOutcome.ReceiptJson);
++    }
++
++    private static void CandidateRequiresParent()
++    {
++        using var fixture = new Fixture();
++        Throws("REPLAY_DEPENDENCY_MISSING", () => fixture.Registry.AppendSnapshot(fixture.Candidate()));
++    }
++
++    private static void EngineAuditRequiresCandidate()
++    {
++        using var fixture = new Fixture();
++        fixture.Registry.AppendSnapshot(fixture.Parent());
++        Throws("REPLAY_DEPENDENCY_MISSING", () => fixture.Registry.AppendEngineAudit(fixture.EngineAudit()));
++    }
++
++    private static void EngineResultMutationRejected()
++    {
++        using var fixture = new Fixture();
++        fixture.AppendSnapshots();
++        var audit = fixture.EngineAudit() with { EngineResultJson = "{\"decision\":\"DENY\"}" };
++        Throws("EVIDENCE_DIGEST_MISMATCH", () => fixture.Registry.AppendEngineAudit(audit));
++    }
++
++    private static void ExpiredAuthorityRejected()
++    {
++        using var fixture = new Fixture();
++        fixture.AppendSnapshotsAndAudit();
++        var expired = fixture.Approval() with { OccurredAtUtc = DateTimeOffset.Parse("2027-01-01T00:00:00Z") };
++        Throws("CREDENTIAL_EXPIRED", () => fixture.Registry.AppendHumanDecision(expired));
++    }
++
++    private static void HumanDecisionBeforeAuditRejected()
++    {
++        using var fixture = new Fixture();
++        fixture.AppendSnapshotsAndAudit();
++        var early = fixture.Approval() with { OccurredAtUtc = DateTimeOffset.Parse("2026-09-10T00:15:00Z") };
++        Throws("PROTOCOL_OBJECT_UNTRUSTED", () => fixture.Registry.AppendHumanDecision(early));
++    }
++
++    private static void AuthorityScopeRejected()
++    {
++        using var fixture = new Fixture();
++        fixture.AppendSnapshotsAndAudit();
++        var wrongScope = fixture.Approval() with { AuthorityScope = ["REJECT_POLICY_ACTIVATION"] };
++        Throws("PROTOCOL_OBJECT_UNTRUSTED", () => fixture.Registry.AppendHumanDecision(wrongScope));
++    }
++
++    private static void AuthorityPolicyBindingRejected()
++    {
++        using var fixture = new Fixture();
++        fixture.AppendSnapshotsAndAudit();
++        var wrongPolicy = fixture.Approval() with { PolicyVersion = "other-version" };
++        Throws("PROTOCOL_OBJECT_UNTRUSTED", () => fixture.Registry.AppendHumanDecision(wrongPolicy));
++    }
++
++    private static void HumanDecisionAppendOnly()
++    {
++        using var fixture = new Fixture();
++        fixture.AppendSnapshotsAndAudit();
++        var approval = fixture.Approval();
++        Equal(approval, fixture.Registry.AppendHumanDecision(approval));
++        Equal(approval, fixture.Registry.AppendHumanDecision(approval));
++        Throws("IDEMPOTENCY_CONFLICT", () => fixture.Registry.AppendHumanDecision(fixture.Rejection()));
++    }
++
++    private static void ActionReceiptRequiresApproval()
++    {
++        using var fixture = new Fixture();
++        fixture.AppendSnapshotsAndAudit();
++        var rejection = fixture.Rejection();
++        fixture.Registry.AppendHumanDecision(rejection);
++        Throws("PROTOCOL_OBJECT_UNTRUSTED", () => fixture.Registry.AppendActionOutcome(fixture.Receipt(rejection.EventId)));
++    }
++
++    private static void ActionOutcomeIdempotency()
++    {
++        using var fixture = new Fixture();
++        fixture.AppendSnapshotsAndAudit();
++        var decision = fixture.Approval();
++        fixture.Registry.AppendHumanDecision(decision);
++        var receipt = fixture.Receipt(decision.EventId);
++        Equal(receipt, fixture.Registry.AppendActionOutcome(receipt));
++        Equal(receipt, fixture.Registry.AppendActionOutcome(receipt));
++        const string conflictingReceipt = "{\"action_id\":\"fake-refund-review-002\",\"count\":1,\"outcome\":\"SIMULATED\"}";
++        var conflict = receipt with
++        {
++            EventId = "action-outcome-conflict",
++            ReceiptJson = conflictingReceipt,
++            ResultSha256 = FdeTrial001Registry.ComputeCanonicalSha256(conflictingReceipt)
++        };
++        Throws("IDEMPOTENCY_CONFLICT", () => fixture.Registry.AppendActionOutcome(conflict));
++    }
++
++    private static void PreActionAuditPersistenceFailsClosed()
++    {
++        using var fixture = new Fixture();
++        fixture.AppendSnapshots();
++        fixture.FailInsertsFor("ENGINE_AUDIT_PERSISTED");
++        var exception = Throws("AUDIT_PERSISTENCE_FAILED", () => fixture.Registry.AppendEngineAudit(fixture.EngineAudit()));
++        Equal("NO_ACTION_RETRY_ONLY_AFTER_PERSISTENCE_RECOVERY", exception.RetryPreconditions);
++        False(exception.ActionAllowed);
++    }
++
++    private static void ApprovalPersistenceFailsClosed()
++    {
++        using var fixture = new Fixture();
++        fixture.AppendSnapshotsAndAudit();
++        fixture.FailInsertsFor("HUMAN_DECISION_APPENDED");
++        var exception = Throws("AUDIT_PERSISTENCE_FAILED", () => fixture.Registry.AppendHumanDecision(fixture.Approval()));
++        Equal("NO_ACTION_RETRY_ONLY_AFTER_PERSISTENCE_RECOVERY", exception.RetryPreconditions);
++        False(exception.ActionAllowed);
++    }
++
++    private static void ReceiptPersistenceRequiresReconciliation()
++    {
++        using var fixture = new Fixture();
++        fixture.AppendSnapshotsAndAudit();
++        var decision = fixture.Approval();
++        fixture.Registry.AppendHumanDecision(decision);
++        fixture.FailInsertsFor("ACTION_OUTCOME_PERSISTED");
++        var exception = Throws("AUDIT_PERSISTENCE_FAILED", () => fixture.Registry.AppendActionOutcome(fixture.Receipt(decision.EventId)));
++        Equal("RECONCILE_ACTION_IDEMPOTENCY_KEY_BEFORE_ANY_RETRY_DECISION", exception.RetryPreconditions);
++        False(exception.ActionAllowed);
++    }
++
++    private static void SnapshotTamperRejected() => AssertTamperRejected("POLICY_SNAPSHOT_PERSISTED", "ACTIVE", "ALTERED");
++    private static void EngineAuditTamperRejected() => AssertTamperRejected("ENGINE_AUDIT_PERSISTED", "REVIEW_REQUIRED", "DENY");
++    private static void ApprovalTamperRejected() => AssertTamperRejected("HUMAN_DECISION_APPENDED", "synthetic-refund-policy-owner-001", "unauthorized-actor");
++    private static void ActionReceiptTamperRejected() => AssertTamperRejected("ACTION_OUTCOME_PERSISTED", "SIMULATED", "REAL");
++
++    private static void AssertTamperRejected(string eventType, string original, string replacement)
++    {
++        using var fixture = new Fixture();
++        fixture.AppendFullApproveChain();
++        fixture.ReplacePayload(eventType, original, replacement);
++        Throws("EVIDENCE_DIGEST_MISMATCH", () => fixture.Registry.Replay());
++    }
++
++    private static FdeTrial001RejectedException Throws(string errorCode, Action action)
++    {
++        try
++        {
++            action();
++        }
++        catch (FdeTrial001RejectedException exception)
++        {
++            Equal(errorCode, exception.ErrorCode);
++            return exception;
++        }
++        throw new InvalidOperationException($"Expected FdeTrial001RejectedException with code {errorCode}.");
++    }
++
++    private static void Equal<T>(T expected, T actual)
++    {
++        if (!EqualityComparer<T>.Default.Equals(expected, actual))
++            throw new InvalidOperationException($"Expected {expected}; actual {actual}.");
++    }
++
++    private static void IsSha256(string value)
++    {
++        if (value.Length != 64 || value.Any(character => !Uri.IsHexDigit(character)))
++            throw new InvalidOperationException("Expected SHA-256 hexadecimal digest.");
++    }
++
++    private static void False(bool value)
++    {
++        if (value) throw new InvalidOperationException("Expected false.");
++    }
++
++    private sealed class Fixture : IDisposable
++    {
++        private const string ParentRef = "synthetic://fde-trial-001/kg/refund-policy/1.0";
++        private const string CandidateRef = "synthetic://fde-trial-001/kg/refund-policy/2.0-proposed";
++        private readonly string root = Path.Combine(Path.GetTempPath(), $"fskg-fde-trial-001-{Guid.NewGuid():N}");
++        private readonly string databasePath;
++
++        internal FdeTrial001Registry Registry { get; private set; }
++
++        internal Fixture()
++        {
++            Directory.CreateDirectory(root);
++            databasePath = Path.Combine(root, "fde-trial-001.sqlite3");
++            Registry = new FdeTrial001Registry(databasePath);
++        }
++
++        internal FdePolicySnapshot Parent() => new(
++            FdeTrial001Registry.CaseId,
++            FdeTrial001Registry.FixtureVersion,
++            ParentRef,
++            null,
++            "refund-policy",
++            "1.0",
++            "ACTIVE",
++            "synthetic://fde-trial-001/policy/1.0",
++            "UTF8_BYTES_OF_PAYLOAD_RULE_NO_TERMINATOR",
++            "C303F4EE95048BAAD0D403C00B424D7BE7C3FC96DD2BAF4F1E26698D9F976F39",
++            "CB94069AE256936C20AE11FB9F7845189748B2C418173E4BA282568F211AC8BC");
++
++        internal FdePolicySnapshot Candidate() => new(
++            FdeTrial001Registry.CaseId,
++            FdeTrial001Registry.FixtureVersion,
++            CandidateRef,
++            ParentRef,
++            "refund-policy",
++            "2.0-proposed",
++            "PROPOSED",
++            "synthetic://fde-trial-001/policy/2.0-proposed",
++            "UTF8_BYTES_OF_PAYLOAD_RULE_NO_TERMINATOR",
++            "BB858027A6ED68B8705B3399E996DE5B1876A4747964D231E228204C13DA26D5",
++            "36AE2D30ED5AD970E106A95D414AF4E6975ABC24C65366B2E36DA837335DE0DD");
++
++        internal FdeEngineAuditRecord EngineAudit()
++        {
++            const string input = "{\"case_id\":\"FDE-TRIAL-001\",\"knowledge_snapshot_ref\":\"synthetic://fde-trial-001/kg/refund-policy/2.0-proposed\"}";
++            const string result = "{\"decision\":\"REVIEW_REQUIRED\",\"hard_gate\":\"FAIL\",\"real_action_allowed\":false,\"verification_status\":\"FIXTURE_EXPECTATION_ONLY\"}";
++            return new FdeEngineAuditRecord(
++                "engine-audit-001",
++                FdeTrial001Registry.CaseId,
++                FdeTrial001Registry.FixtureVersion,
++                CandidateRef,
++                input,
++                FdeTrial001Registry.ComputeCanonicalSha256(input),
++                result,
++                FdeTrial001Registry.ComputeCanonicalSha256(result),
++                FdeTrial001Registry.ComputeCanonicalSha256(result),
++                DateTimeOffset.Parse("2026-09-10T00:30:00Z"));
++        }
++
++        internal FdeHumanDecisionEvent Approval() => Decision(
++            "human-approval-001",
++            "APPROVE",
++            ["APPROVE_POLICY_ACTIVATION", "AUTHORIZE_LOCAL_FAKE_ACTION"]);
++
++        internal FdeHumanDecisionEvent Rejection() => Decision(
++            "human-rejection-001",
++            "REJECT",
++            ["REJECT_POLICY_ACTIVATION"]);
++
++        internal FdeActionOutcomeRecord Receipt(string decisionEventId)
++        {
++            const string receipt = "{\"action_id\":\"fake-refund-review-001\",\"count\":1,\"outcome\":\"SIMULATED\"}";
++            return new FdeActionOutcomeRecord(
++                "action-outcome-001",
++                FdeTrial001Registry.CaseId,
++                FdeTrial001Registry.FixtureVersion,
++                decisionEventId,
++                "ACTION_RECEIPT",
++                "SIMULATE_REFUND_REVIEW",
++                "synthetic://fde-trial-001/order/001",
++                "fde-trial-001:0.1.0-rc:approval-001:simulate-refund-review:order-001",
++                new string('1', 64),
++                FdeTrial001Registry.ComputeCanonicalSha256(receipt),
++                receipt,
++                DateTimeOffset.Parse("2026-09-10T01:01:00Z"));
++        }
++
++        internal FdeActionOutcomeRecord NoAction(string decisionEventId) => new(
++            "no-action-001",
++            FdeTrial001Registry.CaseId,
++            FdeTrial001Registry.FixtureVersion,
++            decisionEventId,
++            "NO_ACTION",
++            "SIMULATE_REFUND_REVIEW",
++            "synthetic://fde-trial-001/order/001",
++            "fde-trial-001:0.1.0-rc:rejection-001:no-action:order-001",
++            new string('2', 64),
++            FdeTrial001Registry.ComputeCanonicalSha256("{\"outcome\":\"NO_ACTION\"}"),
++            null,
++            DateTimeOffset.Parse("2026-09-10T01:01:00Z"));
++
++        internal void AppendSnapshots()
++        {
++            Registry.AppendSnapshot(Parent());
++            Registry.AppendSnapshot(Candidate());
++        }
++
++        internal void AppendSnapshotsAndAudit()
++        {
++            AppendSnapshots();
++            Registry.AppendEngineAudit(EngineAudit());
++        }
++
++        internal void AppendFullApproveChain()
++        {
++            AppendSnapshotsAndAudit();
++            var decision = Approval();
++            Registry.AppendHumanDecision(decision);
++            Registry.AppendActionOutcome(Receipt(decision.EventId));
++        }
++
++        internal void Reopen()
++        {
++            Registry.Dispose();
++            Registry = new FdeTrial001Registry(databasePath);
++        }
++
++        internal void FailInsertsFor(string eventType) => ExecuteScript($"""
++            CREATE TRIGGER fail_fde_insert BEFORE INSERT ON kg_fde_trial_001_events
++            WHEN NEW.event_type = '{eventType}'
++            BEGIN SELECT RAISE(ABORT, 'injected persistence failure'); END;
++            """);
++
++        internal void ReplacePayload(string eventType, string original, string replacement) =>
++            ExecuteScript($"UPDATE kg_fde_trial_001_events SET payload = replace(payload, '{original}', '{replacement}') WHERE event_type = '{eventType}';");
++
++        private FdeHumanDecisionEvent Decision(string eventId, string decision, IReadOnlyList<string> scope) => new(
++            eventId,
++            FdeTrial001Registry.CaseId,
++            FdeTrial001Registry.FixtureVersion,
++            "engine-audit-001",
++            CandidateRef,
++            "refund-policy",
++            "2.0-proposed",
++            decision,
++            decision == "APPROVE" ? "ACTIVE" : "REJECTED",
++            "synthetic-refund-policy-owner-001",
++            "synthetic://fde-trial-001/authority/refund-policy-owner/001",
++            scope,
++            DateTimeOffset.Parse("2026-09-10T00:00:00Z"),
++            DateTimeOffset.Parse("2026-12-31T23:59:59Z"),
++            DateTimeOffset.Parse("2026-09-10T01:00:00Z"));
++
++        private void ExecuteScript(string sql)
++        {
++            var field = typeof(FdeTrial001Registry).GetField("database", BindingFlags.Instance | BindingFlags.NonPublic)!;
++            var database = field.GetValue(Registry)!;
++            var method = database.GetType().GetMethod("ExecuteScript", BindingFlags.Instance | BindingFlags.NonPublic)!;
++            try
++            {
++                method.Invoke(database, [sql]);
++            }
++            catch (TargetInvocationException exception) when (exception.InnerException is not null)
++            {
++                throw exception.InnerException;
++            }
++        }
++
++        public void Dispose()
++        {
++            Registry.Dispose();
++            if (Directory.Exists(root)) Directory.Delete(root, true);
++        }
++    }
++}
