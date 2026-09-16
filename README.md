@@ -1,20 +1,30 @@
 # Full Spectrum Knowledge Governance
 
+创建时间：2026-07-24 11:08 UTC+8
+
+最后更新时间：2026-09-16 21:20 UTC+8
+
+[简体中文](README.zh-CN.md) · [English](README.en.md)
+
 [![Knowledge governance lifecycle](https://github.com/full-spectrum-lab/full-spectrum-commons/blob/main/diagrams/product-views/knowledge-governance-lifecycle-en-v01.png?raw=1)](https://github.com/full-spectrum-lab/full-spectrum-commons/blob/main/docs/visual-index.md)
 
 独立、本地优先的固定知识治理内核。它将知识材料治理为具有身份、精确版本、内容摘要、生命周期、适用条件、审计记录和回放能力的不可变依据。
 
 **产品边界：**它可独立使用，负责精确知识身份、版本、来源、生命周期、冲突与回放；它不是 RAG、向量数据库、CMS、LLM Runtime 或自动真理裁决器。
 
-> `v0.1.0-alpha RELEASED / PRE-RELEASE` · `PRODUCTION_READY=NO`
+> `v0.2.0-alpha PRE-RELEASE CANDIDATE` · `PRODUCTION_READY=NO`
 
 ## Release truth
 
-- [GitHub v0.1.0-alpha Pre-release](https://github.com/full-spectrum-lab/full-spectrum-knowledge-governance/releases/tag/v0.1.0-alpha)
-- [Gitee v0.1.0-alpha Release](https://gitee.com/full-spectrum/full-spectrum-knowledge-governance/releases/tag/v0.1.0-alpha)
-- Release commit: `afe0a6a672b2008a6ba3aa048e6099f84bf5199f`
+- [GitHub v0.2.0-alpha Pre-release](https://github.com/full-spectrum-lab/full-spectrum-knowledge-governance/releases/tag/v0.2.0-alpha)
+- Binary build commit: `42733a87745e5c60eddf0eb48ffe33545805805b`
+- Release tag target / audit documentation commit: `e7fc520acd8accae3b38fb43c08316bf49d8e924`
+- Engineering tests: `92/92 PASS`
+- Package black-box verification: `PASS`
 - Verified platform: Windows x64
 - Linux/macOS: not executed
+
+The binary-build identity and the later audit-documentation identity are intentionally recorded separately. This is a framework-dependent pre-release candidate and does not authorize production deployment or user-data processing.
 
 The diagram above describes the lifecycle direction. It is not evidence that every depicted future capability has shipped; the code, tests and release record are authoritative.
 
