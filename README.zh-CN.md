@@ -2,9 +2,20 @@
 
 创建时间：2026-09-16 21:20 UTC+8
 
-最后更新时间：2026-09-16 21:20 UTC+8
+最后更新时间：2026-09-16 22:05 UTC+8
 
 [简体中文](README.zh-CN.md) · [English](README.en.md)
+
+## 公共状态头
+
+| 字段 | 当前值 |
+|---|---|
+| `ROLE` | 精确知识身份、版本、来源、生命周期、冲突与回放 |
+| `STATUS` | `v0.2.0-alpha` Windows x64 预发布候选 |
+| `CURRENT_CAPABILITY` | 固定知识 Registry、生命周期、确定性解析、Evidence 与 Replay |
+| `NOT_CLAIMED` | RAG、向量数据库、LLM Runtime、自动真理裁决或生产授权 |
+| `PRODUCTION_READY` | `NO` |
+| `START_HERE` | [当前版本真相](#当前版本真相) · [公共架构图](https://github.com/full-spectrum-lab/full-spectrum-commons/blob/main/docs/public-architecture-map.zh-CN.md) |
 
 这是一个独立、本地优先的固定知识治理内核。它把知识材料治理为带有身份、精确版本、内容摘要、生命周期、适用条件、审计记录和回放能力的不可变依据。
 

@@ -2,9 +2,20 @@
 
 创建时间：2026-07-24 11:08 UTC+8
 
-最后更新时间：2026-09-16 21:20 UTC+8
+最后更新时间：2026-09-16 22:05 UTC+8
 
 [简体中文](README.zh-CN.md) · [English](README.en.md)
+
+## Public status header
+
+| Field | Value |
+|---|---|
+| `ROLE` | Exact knowledge identity, version, provenance, lifecycle, conflict and replay |
+| `STATUS` | `v0.2.0-alpha` Windows x64 pre-release candidate |
+| `CURRENT_CAPABILITY` | Fixed-knowledge registry, lifecycle, deterministic resolution, Evidence and replay |
+| `NOT_CLAIMED` | RAG, vector database, LLM runtime, automatic truth adjudication or production authorization |
+| `PRODUCTION_READY` | `NO` |
+| `START_HERE` | [中文入口](./README.zh-CN.md) · [Public Architecture Map](https://github.com/full-spectrum-lab/full-spectrum-commons/blob/main/docs/public-architecture-map.md) |
 
 [![Knowledge governance lifecycle](https://github.com/full-spectrum-lab/full-spectrum-commons/blob/main/diagrams/product-views/knowledge-governance-lifecycle-en-v01.png?raw=1)](https://github.com/full-spectrum-lab/full-spectrum-commons/blob/main/docs/visual-index.md)
 
