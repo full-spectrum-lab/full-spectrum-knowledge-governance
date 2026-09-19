@@ -11,7 +11,6 @@ internal static class Program
             string? line;
             while ((line = Console.ReadLine()) is not null)
             {
-                if (string.IsNullOrWhiteSpace(line)) return 65;
                 Console.WriteLine(session.ProcessLine(line));
             }
             return 0;

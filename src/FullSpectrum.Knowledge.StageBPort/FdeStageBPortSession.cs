@@ -8,6 +8,7 @@ namespace FullSpectrum.Knowledge.StageBPort;
 public sealed class FdeStageBPortSession : IDisposable
 {
     public const string ProtocolVersion = "FDE-STAGE-B-I2-PORT-V1";
+    public const string UnboundRequestId = "UNBOUND";
     private static readonly JsonSerializerOptions JsonOptions = new(KnowledgeJson.Options) { WriteIndented = false };
     private readonly string databasePath;
     private readonly HashSet<string> requestIds = new(StringComparer.Ordinal);
@@ -21,18 +22,20 @@ public sealed class FdeStageBPortSession : IDisposable
 
     public string ProcessLine(string line)
     {
-        using var document = JsonDocument.Parse(line);
-        var root = document.RootElement;
-        RequireExactProperties(root, "protocol_version", "request_id", "operation", "payload");
-        var version = RequiredString(root, "protocol_version");
-        var requestId = RequiredString(root, "request_id");
-        if (!string.Equals(version, ProtocolVersion, StringComparison.Ordinal))
-            return Error(requestId, "PROTOCOL_VERSION_UNSUPPORTED", "Unsupported Stage B port protocol version.");
-        if (!requestIds.Add(requestId))
-            return Error(requestId, "REQUEST_ID_REUSED", "request_id must be unique for the lifetime of the port process.");
-
+        var requestId = UnboundRequestId;
         try
         {
+            using var document = JsonDocument.Parse(line);
+            var root = document.RootElement;
+            requestId = ReadRequestIdOrUnbound(root);
+            RequireExactProperties(root, "protocol_version", "request_id", "operation", "payload");
+            var version = RequiredString(root, "protocol_version");
+            requestId = RequiredString(root, "request_id");
+            if (!string.Equals(version, ProtocolVersion, StringComparison.Ordinal))
+                return Error(requestId, "PROTOCOL_VERSION_UNSUPPORTED", "Unsupported Stage B port protocol version.");
+            if (!requestIds.Add(requestId))
+                return Error(requestId, "REQUEST_ID_REUSED", "request_id must be unique for the lifetime of the port process.");
+
             var operation = RequiredString(root, "operation");
             var payload = root.GetProperty("payload");
             object? result = operation switch
@@ -96,7 +99,7 @@ public sealed class FdeStageBPortSession : IDisposable
     {
         RequireExactProperties(payload, "run_id");
         var runId = RequiredUuidV7(payload, "run_id");
-        return new { events = registry.Replay(runId) };
+        return new { events = registry.Replay(runId).Cast<object>().ToArray() };
     }
 
     private object RevisionRoot(JsonElement payload)
@@ -145,6 +148,16 @@ public sealed class FdeStageBPortSession : IDisposable
     {
         if (!value.TryGetProperty(property, out var element) || element.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(element.GetString()))
             throw new PortRequestException("REQUEST_FIELD_INVALID", $"{property} must be a non-empty string.");
+        return element.GetString()!;
+    }
+
+    private static string ReadRequestIdOrUnbound(JsonElement value)
+    {
+        if (value.ValueKind != JsonValueKind.Object
+            || !value.TryGetProperty("request_id", out var element)
+            || element.ValueKind != JsonValueKind.String
+            || string.IsNullOrWhiteSpace(element.GetString()))
+            return UnboundRequestId;
         return element.GetString()!;
     }
 

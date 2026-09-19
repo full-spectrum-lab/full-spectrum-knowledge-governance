@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using FullSpectrum.Knowledge.Contracts;
 using FullSpectrum.Knowledge.Contracts.FdeStageB;
@@ -27,7 +28,9 @@ internal static class FdeStageBKgTests
         ("stage B KG replay rejects persisted run id index tampering", ReplayRejectsRunIdIndexTampering),
         ("stage B KG revision root rejects durable sequence tampering", RevisionRootRejectsSequenceTampering),
         ("stage B KG public get returns immutable authority objects", PublicGet),
-        ("stage B KG JSON Lines port binds requests and survives reopen", JsonLinesPort)
+        ("stage B KG JSON Lines port binds requests and survives reopen", JsonLinesPort),
+        ("stage B KG JSON Lines process isolates malformed requests", JsonLinesProcessIsolatesMalformedRequests),
+        ("stage B KG JSON Lines replay preserves derived fields", JsonLinesReplayPreservesDerivedFields)
     ];
 
     private static void DirectReceiptReplay()
@@ -249,6 +252,95 @@ internal static class FdeStageBKgTests
         using var unknown = Parse(session.ProcessLine(Request("req-6", "unknown", new { })));
         False(unknown.RootElement.GetProperty("ok").GetBoolean());
         Equal("OPERATION_UNKNOWN", unknown.RootElement.GetProperty("error").GetProperty("code").GetString());
+    }
+
+    private static void JsonLinesProcessIsolatesMalformedRequests()
+    {
+        using var fixture = new Fixture(openRegistry: false);
+        var valid = Request("req-valid", "revision_root", new { });
+        var result = RunPortProcess(fixture.DatabasePath,
+            "{\"protocol_version\":\"FDE-STAGE-B-I2-PORT-V1\",\"request_id\":\"bad-missing\",\"payload\":{}}",
+            "{\"protocol_version\":\"FDE-STAGE-B-I2-PORT-V1\",\"request_id\":\"bad-extra\",\"operation\":\"revision_root\",\"payload\":{},\"unexpected\":true}",
+            "{\"protocol_version\":",
+            "{\"protocol_version\":\"FDE-STAGE-B-I2-PORT-V1\",\"operation\":\"revision_root\",\"payload\":{}}",
+            "{\"protocol_version\":\"FDE-STAGE-B-I2-PORT-V1\",\"request_id\":\"\",\"operation\":\"revision_root\",\"payload\":{}}",
+            "",
+            valid);
+
+        Equal(0, result.ExitCode);
+        Equal("", result.StandardError);
+        Equal(7, result.Lines.Length);
+        AssertError(result.Lines[0], "bad-missing", "REQUEST_SHAPE_INVALID");
+        AssertError(result.Lines[1], "bad-extra", "REQUEST_SHAPE_INVALID");
+        AssertError(result.Lines[2], FdeStageBPortSession.UnboundRequestId, "REQUEST_JSON_INVALID");
+        AssertError(result.Lines[3], FdeStageBPortSession.UnboundRequestId, "REQUEST_SHAPE_INVALID");
+        AssertError(result.Lines[4], FdeStageBPortSession.UnboundRequestId, "REQUEST_FIELD_INVALID");
+        AssertError(result.Lines[5], FdeStageBPortSession.UnboundRequestId, "REQUEST_JSON_INVALID");
+        using var recovered = Parse(result.Lines[6]);
+        Equal("req-valid", recovered.RootElement.GetProperty("request_id").GetString());
+        True(recovered.RootElement.GetProperty("ok").GetBoolean());
+    }
+
+    private static void JsonLinesReplayPreservesDerivedFields()
+    {
+        using var fixture = new Fixture(openRegistry: false);
+        var audit = fixture.Audit();
+        var result = RunPortProcess(fixture.DatabasePath,
+            Request("append", "append", new { @event = audit }),
+            Request("get", "get", new { event_global_ref = $"kg:{audit.EventId}" }),
+            Request("replay", "replay", new { run_id = audit.RunId }));
+
+        Equal(0, result.ExitCode);
+        Equal("", result.StandardError);
+        Equal(3, result.Lines.Length);
+        using var get = Parse(result.Lines[1]);
+        using var replay = Parse(result.Lines[2]);
+        var getEvent = get.RootElement.GetProperty("result").GetProperty("event");
+        var replayEvent = replay.RootElement.GetProperty("result").GetProperty("events")[0];
+        True(getEvent.TryGetProperty("engine_result_sha256", out _));
+        True(getEvent.TryGetProperty("audit_status", out _));
+        True(replayEvent.TryGetProperty("engine_result_sha256", out _));
+        True(replayEvent.TryGetProperty("audit_status", out _));
+        Equal(
+            DeterministicJson.Canonicalize(getEvent.GetRawText()),
+            DeterministicJson.Canonicalize(replayEvent.GetRawText()));
+    }
+
+    private static void AssertError(string response, string requestId, string code)
+    {
+        using var document = Parse(response);
+        Equal(requestId, document.RootElement.GetProperty("request_id").GetString());
+        False(document.RootElement.GetProperty("ok").GetBoolean());
+        Equal(code, document.RootElement.GetProperty("error").GetProperty("code").GetString());
+    }
+
+    private static (int ExitCode, string[] Lines, string StandardError) RunPortProcess(string databasePath, params string[] requests)
+    {
+        var executable = Path.Combine(AppContext.BaseDirectory, "FullSpectrum.Knowledge.StageBPort.exe");
+        if (!File.Exists(executable)) throw new InvalidOperationException($"Stage B port executable not found: {executable}");
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = executable,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+        startInfo.ArgumentList.Add("--database");
+        startInfo.ArgumentList.Add(databasePath);
+        using var process = Process.Start(startInfo) ?? throw new InvalidOperationException("Failed to start Stage B port process.");
+        foreach (var request in requests) process.StandardInput.WriteLine(request);
+        process.StandardInput.Close();
+        var standardOutput = process.StandardOutput.ReadToEnd();
+        var standardError = process.StandardError.ReadToEnd();
+        if (!process.WaitForExit(10_000))
+        {
+            process.Kill(entireProcessTree: true);
+            throw new InvalidOperationException("Stage B port process did not exit after input closed.");
+        }
+        var lines = standardOutput.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
+        return (process.ExitCode, lines, standardError);
     }
 
     private static string Request(string requestId, string operation, object payload) => JsonSerializer.Serialize(new
