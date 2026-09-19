@@ -16,6 +16,11 @@ public sealed record FdeGlobalEventRef(
     string TargetType,
     string TargetPayloadSha256);
 
+public sealed record FdeKgRevisionRoot(
+    string KgRevisionRef,
+    string KgRootSha256,
+    IReadOnlyList<string> OrderedEventRefs);
+
 public abstract record FdeKgEvent(
     Guid EventId,
     Guid RunId,

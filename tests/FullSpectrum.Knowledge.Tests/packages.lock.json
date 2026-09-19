@@ -27,6 +27,13 @@
           "FullSpectrum.Knowledge.Trace": "[0.1.1-alpha, )"
         }
       },
+      "fullspectrum.knowledge.stagebport": {
+        "type": "Project",
+        "dependencies": {
+          "FullSpectrum.Knowledge.Contracts": "[0.1.1-alpha, )",
+          "FullSpectrum.Knowledge.Storage": "[0.1.1-alpha, )"
+        }
+      },
       "fullspectrum.knowledge.storage": {
         "type": "Project",
         "dependencies": {

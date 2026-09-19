@@ -1,4 +1,7 @@
+using System.Text.Json;
+using FullSpectrum.Knowledge.Contracts;
 using FullSpectrum.Knowledge.Contracts.FdeStageB;
+using FullSpectrum.Knowledge.StageBPort;
 using FullSpectrum.Knowledge.Storage.FdeStageB;
 
 namespace FullSpectrum.Knowledge.Tests;
@@ -16,7 +19,15 @@ internal static class FdeStageBKgTests
         ("stage B KG forbids no-action copy after receipt failure", ReceiptFailureForbidsNoActionCopy),
         ("stage B KG rejects incomplete receipt predecessors", ReceiptPredecessorSet),
         ("stage B KG enforces frozen schema field constraints", FrozenSchemaFieldConstraints),
-        ("stage B KG replay rejects persisted payload tampering", ReplayTamperFailsClosed)
+        ("stage B KG replay rejects persisted payload tampering", ReplayTamperFailsClosed),
+        ("stage B KG revision root is stable across close and reopen", RevisionRootStableAcrossReopen),
+        ("stage B KG revision root changes after a durable append", RevisionRootChangesAfterAppend),
+        ("stage B KG revision root rejects persisted index tampering", RevisionRootRejectsIndexTampering),
+        ("stage B KG get rejects persisted event id index tampering", GetRejectsEventIdIndexTampering),
+        ("stage B KG replay rejects persisted run id index tampering", ReplayRejectsRunIdIndexTampering),
+        ("stage B KG revision root rejects durable sequence tampering", RevisionRootRejectsSequenceTampering),
+        ("stage B KG public get returns immutable authority objects", PublicGet),
+        ("stage B KG JSON Lines port binds requests and survives reopen", JsonLinesPort)
     ];
 
     private static void DirectReceiptReplay()
@@ -136,6 +147,124 @@ internal static class FdeStageBKgTests
         Throws("REQUIRED_TEXT_INVALID", () => fixture.Registry.Append(WithDigest(noAction with { EventId = Guid.CreateVersion7(), ReasonCode = " " })));
     }
 
+    private static void RevisionRootStableAcrossReopen()
+    {
+        using var fixture = new Fixture();
+        var audit = fixture.Registry.Append(fixture.Audit());
+        var before = fixture.Registry.RevisionRoot();
+        fixture.Reopen();
+        var after = fixture.Registry.RevisionRoot();
+        Equal(before.KgRevisionRef, after.KgRevisionRef);
+        Equal(before.KgRootSha256, after.KgRootSha256);
+        True(before.OrderedEventRefs.SequenceEqual(after.OrderedEventRefs));
+        Equal("kg-revision:1", after.KgRevisionRef);
+        Equal($"kg:{audit.EventId}", after.OrderedEventRefs.Single());
+    }
+
+    private static void RevisionRootChangesAfterAppend()
+    {
+        using var fixture = new Fixture();
+        var audit = fixture.Registry.Append(fixture.Audit());
+        var first = fixture.Registry.RevisionRoot();
+        fixture.Registry.Append(fixture.Decision(audit));
+        var second = fixture.Registry.RevisionRoot();
+        Equal("kg-revision:2", second.KgRevisionRef);
+        False(string.Equals(first.KgRootSha256, second.KgRootSha256, StringComparison.OrdinalIgnoreCase));
+        Equal(2, second.OrderedEventRefs.Count);
+    }
+
+    private static void RevisionRootRejectsIndexTampering()
+    {
+        using var fixture = new Fixture();
+        fixture.Registry.Append(fixture.Audit());
+        fixture.ExecuteSql($"UPDATE kg_fde_stage_b_events SET run_id='{Guid.CreateVersion7()}';");
+        Throws("PERSISTED_RUN_ID_COLUMN_MISMATCH", () => fixture.Registry.RevisionRoot());
+    }
+
+    private static void GetRejectsEventIdIndexTampering()
+    {
+        using var fixture = new Fixture();
+        var audit = fixture.Registry.Append(fixture.Audit());
+        fixture.ExecuteSql($"UPDATE kg_fde_stage_b_events SET event_id='{Guid.CreateVersion7()}';");
+        Throws("PERSISTED_EVENT_ID_COLUMN_MISMATCH", () => fixture.Registry.Get($"kg:{audit.EventId}"));
+    }
+
+    private static void ReplayRejectsRunIdIndexTampering()
+    {
+        using var fixture = new Fixture();
+        fixture.Registry.Append(fixture.Audit());
+        fixture.ExecuteSql($"UPDATE kg_fde_stage_b_events SET run_id='{Guid.CreateVersion7()}';");
+        Throws("PERSISTED_RUN_ID_COLUMN_MISMATCH", () => fixture.Registry.Replay(fixture.RunId));
+    }
+
+    private static void RevisionRootRejectsSequenceTampering()
+    {
+        using var fixture = new Fixture();
+        fixture.Registry.Append(fixture.Audit());
+        fixture.ExecuteSql("UPDATE kg_fde_stage_b_events SET sequence=7 WHERE sequence=1;");
+        Throws("PERSISTED_SEQUENCE_INVALID", () => fixture.Registry.RevisionRoot());
+    }
+
+    private static void PublicGet()
+    {
+        using var fixture = new Fixture();
+        var audit = fixture.Registry.Append(fixture.Audit());
+        var found = fixture.Registry.Get($"kg:{audit.EventId}");
+        var foundAudit = found as FdeEnginePreActionAudit
+            ?? throw new InvalidOperationException("Expected audit event.");
+        Equal(
+            DeterministicJson.Canonicalize(JsonSerializer.Serialize(audit, KnowledgeJson.Options)),
+            DeterministicJson.Canonicalize(JsonSerializer.Serialize(foundAudit, KnowledgeJson.Options)));
+        Equal<FdeKgEvent?>(null, fixture.Registry.Get($"kg:{Guid.CreateVersion7()}"));
+        Throws("GLOBAL_REF_INVALID", () => fixture.Registry.Get("kg:not-a-uuid"));
+    }
+
+    private static void JsonLinesPort()
+    {
+        using var fixture = new Fixture(openRegistry: false);
+        using var session = new FdeStageBPortSession(fixture.DatabasePath);
+        var audit = fixture.Audit();
+
+        using var append = Parse(session.ProcessLine(Request("req-1", "append", new { @event = audit })));
+        True(append.RootElement.GetProperty("ok").GetBoolean());
+        Equal("req-1", append.RootElement.GetProperty("request_id").GetString());
+        Equal($"kg:{audit.EventId}", append.RootElement.GetProperty("result").GetProperty("event_global_ref").GetString());
+
+        using var get = Parse(session.ProcessLine(Request("req-2", "get", new { event_global_ref = $"kg:{audit.EventId}" })));
+        Equal("FOUND", get.RootElement.GetProperty("result").GetProperty("status").GetString());
+
+        using var root1 = Parse(session.ProcessLine(Request("req-3", "revision_root", new { })));
+        var digest1 = root1.RootElement.GetProperty("result").GetProperty("kg_root_sha256").GetString();
+        Equal("kg-revision:1", root1.RootElement.GetProperty("result").GetProperty("kg_revision_ref").GetString());
+
+        using var reopened = Parse(session.ProcessLine(Request("req-4", "close_reopen", new { })));
+        Equal("REOPENED", reopened.RootElement.GetProperty("result").GetProperty("status").GetString());
+        using var root2 = Parse(session.ProcessLine(Request("req-5", "revision_root", new { })));
+        Equal(digest1, root2.RootElement.GetProperty("result").GetProperty("kg_root_sha256").GetString());
+
+        using var duplicate = Parse(session.ProcessLine(Request("req-5", "revision_root", new { })));
+        False(duplicate.RootElement.GetProperty("ok").GetBoolean());
+        Equal("REQUEST_ID_REUSED", duplicate.RootElement.GetProperty("error").GetProperty("code").GetString());
+
+        using var unknown = Parse(session.ProcessLine(Request("req-6", "unknown", new { })));
+        False(unknown.RootElement.GetProperty("ok").GetBoolean());
+        Equal("OPERATION_UNKNOWN", unknown.RootElement.GetProperty("error").GetProperty("code").GetString());
+    }
+
+    private static string Request(string requestId, string operation, object payload) => JsonSerializer.Serialize(new
+    {
+        protocol_version = FdeStageBPortSession.ProtocolVersion,
+        request_id = requestId,
+        operation,
+        payload
+    }, new JsonSerializerOptions(KnowledgeJson.Options) { WriteIndented = false });
+
+    private static JsonDocument Parse(string json)
+    {
+        if (json.Contains('\n') || json.Contains('\r')) throw new InvalidOperationException("Port response must be exactly one JSON line.");
+        return JsonDocument.Parse(json);
+    }
+
     private static T WithDigest<T>(T value) where T : FdeKgEvent
     {
         var digest = FdeStageBKgRegistry.ComputePayloadSha256(value);
@@ -154,6 +283,7 @@ internal static class FdeStageBKgTests
 
     private static string Sha(char value) => new(value, 64);
     private static void Equal<T>(T expected, T actual) { if (!EqualityComparer<T>.Default.Equals(expected, actual)) throw new InvalidOperationException($"Expected {expected}; got {actual}."); }
+    private static void True(bool value) { if (!value) throw new InvalidOperationException("Expected true."); }
     private static void False(bool value) { if (value) throw new InvalidOperationException("Expected false."); }
     private static FdeKgPersistenceException Throws(string code, Action action)
     {
@@ -168,14 +298,16 @@ internal static class FdeStageBKgTests
         private readonly string path;
         private readonly FdeKgFailurePoint failurePoint;
         internal Guid RunId { get; } = Guid.CreateVersion7();
-        internal FdeStageBKgRegistry Registry { get; private set; }
+        internal FdeStageBKgRegistry? OptionalRegistry { get; private set; }
+        internal FdeStageBKgRegistry Registry => OptionalRegistry ?? throw new InvalidOperationException("Fixture registry was intentionally not opened.");
+        internal string DatabasePath => path;
 
-        internal Fixture(FdeKgFailurePoint failurePoint = FdeKgFailurePoint.None)
+        internal Fixture(FdeKgFailurePoint failurePoint = FdeKgFailurePoint.None, bool openRegistry = true)
         {
             this.failurePoint = failurePoint;
             Directory.CreateDirectory(root);
             path = Path.Combine(root, "kg.sqlite3");
-            Registry = new FdeStageBKgRegistry(path, failurePoint);
+            if (openRegistry) OptionalRegistry = new FdeStageBKgRegistry(path, failurePoint);
         }
 
         internal FdeEnginePreActionAudit Audit()
@@ -238,13 +370,13 @@ internal static class FdeStageBKgTests
         internal FdeGlobalEventRef Ref(FdeKgEvent value) => new($"kg:{value.EventId}", value.EventType, value.PayloadSha256);
         private static FdeGlobalEventRef External(string system, string type) => new($"{system}:{Guid.CreateVersion7()}", type, Sha('e'));
 
-        internal void Reopen() { Registry.Dispose(); Registry = new FdeStageBKgRegistry(path); }
+        internal void Reopen() { Registry.Dispose(); OptionalRegistry = new FdeStageBKgRegistry(path); }
         internal void ExecuteSql(string sql)
         {
             var field = typeof(FdeStageBKgRegistry).GetField("database", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
             var database = field.GetValue(Registry)!;
             database.GetType().GetMethod("ExecuteScript", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.Invoke(database, [sql]);
         }
-        public void Dispose() { Registry.Dispose(); if (Directory.Exists(root)) Directory.Delete(root, true); }
+        public void Dispose() { OptionalRegistry?.Dispose(); if (Directory.Exists(root)) Directory.Delete(root, true); }
     }
 }

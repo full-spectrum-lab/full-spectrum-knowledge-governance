@@ -85,17 +85,43 @@ public sealed class FdeStageBKgRegistry : IDisposable
 
     public IReadOnlyList<FdeKgEvent> Replay(Guid runId)
     {
-        var rows = database.Query(
-            "SELECT event_type,payload,payload_sha256 FROM kg_fde_stage_b_events WHERE run_id=? ORDER BY sequence;",
-            row => (Type: row.Text(0), Payload: row.Text(1), Digest: row.Text(2)), runId.ToString());
-        var events = rows.Select(row => Deserialize(row.Type, row.Payload)).ToArray();
-        for (var index = 0; index < events.Length; index++)
+        return ReadVerifiedRows()
+            .Where(row => row.Event.RunId == runId)
+            .Select(row => row.Event)
+            .ToArray();
+    }
+
+    public FdeKgEvent? Get(string eventGlobalRef)
+    {
+        if (!eventGlobalRef.StartsWith("kg:", StringComparison.Ordinal)
+            || !Guid.TryParse(eventGlobalRef[3..], out var eventId)
+            || eventId.Version != 7)
+            throw Reject("GLOBAL_REF_INVALID", "FAILED_UNCLOSED", "KG global reference must contain a UUIDv7 local identifier.");
+
+        return ReadVerifiedRows()
+            .Where(row => row.Event.EventId == eventId)
+            .Select(row => row.Event)
+            .SingleOrDefault();
+    }
+
+    public FdeKgRevisionRoot RevisionRoot()
+    {
+        return database.Transaction(() =>
         {
-            RequireEqual(rows[index].Digest, events[index].PayloadSha256, "PERSISTED_DIGEST_COLUMN_MISMATCH");
-            RequireEqual(ComputePayloadSha256(events[index]), events[index].PayloadSha256, "PERSISTED_PAYLOAD_TAMPERED");
-            Validate(events[index]);
-        }
-        return events;
+            var rows = ReadVerifiedRows();
+            var revision = rows.Count == 0 ? 0 : rows[^1].Sequence;
+            var ordered = rows.Select(row => new
+            {
+                event_global_ref = $"kg:{row.Event.EventId}",
+                event_type = row.Event.EventType,
+                payload_sha256 = row.Event.PayloadSha256
+            }).ToArray();
+            var digest = Sha256(DeterministicJson.Canonicalize(JsonSerializer.Serialize(ordered, KnowledgeJson.Options)));
+            return new FdeKgRevisionRoot(
+                $"kg-revision:{revision}",
+                digest,
+                ordered.Select(item => item.event_global_ref).ToArray());
+        });
     }
 
     public static string ComputeCopyId(string sourceGlobalRef) => Sha256(sourceGlobalRef);
@@ -222,6 +248,31 @@ public sealed class FdeStageBKgRegistry : IDisposable
         return row == default ? null : Deserialize(row.Type, row.Payload);
     }
 
+    private IReadOnlyList<VerifiedRow> ReadVerifiedRows()
+    {
+        var rows = database.Query(
+            "SELECT sequence,event_id,run_id,event_type,occurred_at,payload,payload_sha256 FROM kg_fde_stage_b_events ORDER BY sequence;",
+            row => new PersistedRow(
+                row.Int64(0), row.Text(1), row.Text(2), row.Text(3), row.Text(4), row.Text(5), row.Text(6)));
+        var verified = new List<VerifiedRow>(rows.Count);
+        for (var index = 0; index < rows.Count; index++)
+        {
+            var row = rows[index];
+            if (row.Sequence != index + 1)
+                throw Reject("PERSISTED_SEQUENCE_INVALID", "FAILED_UNCLOSED", "KG durable sequence must be contiguous and start at one.");
+            var value = Deserialize(row.EventType, row.Payload);
+            RequireEqual(row.EventId, value.EventId.ToString(), "PERSISTED_EVENT_ID_COLUMN_MISMATCH");
+            RequireEqual(row.RunId, value.RunId.ToString(), "PERSISTED_RUN_ID_COLUMN_MISMATCH");
+            RequireEqual(row.EventType, value.EventType, "PERSISTED_EVENT_TYPE_COLUMN_MISMATCH");
+            RequireEqual(row.OccurredAt, value.OccurredAt.ToString("O"), "PERSISTED_OCCURRED_AT_COLUMN_MISMATCH");
+            RequireEqual(row.PayloadSha256, value.PayloadSha256, "PERSISTED_DIGEST_COLUMN_MISMATCH");
+            RequireEqual(ComputePayloadSha256(value), value.PayloadSha256, "PERSISTED_PAYLOAD_TAMPERED");
+            Validate(value);
+            verified.Add(new VerifiedRow(row.Sequence, value));
+        }
+        return verified;
+    }
+
     private static (string? Key, string? Copy, string? Source, string? State) IndexFields(FdeKgEvent value) => value switch
     {
         FdeActionReceiptDirect receipt => (receipt.IdempotencyKey, null, null, null),
@@ -259,5 +310,7 @@ public sealed class FdeStageBKgRegistry : IDisposable
     private static void RequireSha(string value, string field) { if (!IsSha(value)) throw Reject("SHA256_INVALID", "FAILED_UNCLOSED", $"{field} must be SHA-256."); }
     private static void RequireEqual(string expected, string actual, string code) { if (!string.Equals(expected, actual, StringComparison.OrdinalIgnoreCase)) throw Reject(code, "FAILED_UNCLOSED", $"Expected {expected}, got {actual}."); }
     private static FdeKgPersistenceException Reject(string code, string state, string message, Exception? inner = null) => new(code, state, message, inner);
+    private sealed record PersistedRow(long Sequence, string EventId, string RunId, string EventType, string OccurredAt, string Payload, string PayloadSha256);
+    private sealed record VerifiedRow(long Sequence, FdeKgEvent Event);
     public void Dispose() => database.Dispose();
 }
