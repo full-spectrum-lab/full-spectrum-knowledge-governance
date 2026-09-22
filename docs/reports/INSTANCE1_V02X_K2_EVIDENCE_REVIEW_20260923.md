@@ -1,12 +1,12 @@
 # 实例1 Knowledge Governance v0.2.x / K2 证据复核报告
 
-创建时间：2026-09-23 10:12（Asia/Tokyo）  
-最后更新时间：2026-09-23 10:12（Asia/Tokyo）  
-文档编号：`FSP-KG-EVIDENCE-REVIEW-20260923-001`  
-文档版本：`v1.0`  
-文档状态：`DRAFT_FOR_HUMAN_REVIEW`  
-责任实例/作者：实例1 / Knowledge Governance  
-适用范围：v0.2.x候选、K2离线受控来源与快照、Evidence/Audit/Replay  
+创建时间：2026-09-23 10:12（Asia/Tokyo）
+最后更新时间：2026-09-23 10:12（Asia/Tokyo）
+文档编号：`FSP-KG-EVIDENCE-REVIEW-20260923-001`
+文档版本：`v1.0`
+文档状态：`DRAFT_FOR_HUMAN_REVIEW`
+责任实例/作者：实例1 / Knowledge Governance
+适用范围：v0.2.x候选、K2离线受控来源与快照、Evidence/Audit/Replay
 事实基线：Knowledge Governance Wiki固定提交 `f264357b57339faa9129a067a225d4825b166c82`；当前任务分支提交 `296ebbf33dbe80b7230517a6085453aa34904552`；QPP基线 `02ce1a8f79fe9e45a65d1d2a09b312e7297367e1`
 
 ## 1. 本轮执行范围
