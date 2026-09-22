@@ -1,10 +1,10 @@
 # Knowledge Governance v0.2.x / K2 / Evidence-Replay近期任务
 
 创建时间：2026-09-23 09:40（Asia/Tokyo）
-最后更新时间：2026-09-23 09:40（Asia/Tokyo）
+最后更新时间：2026-09-23 10:12（Asia/Tokyo）
 文档编号：`FSP-KG-TASK-20260923-001`
 文档版本：`v1.0`
-文档状态：`DRAFT_FOR_HUMAN_REVIEW`
+文档状态：`IN_PROGRESS_FOR_HUMAN_REVIEW`
 责任实例/作者：实例1 / Knowledge Governance
 适用范围：Knowledge Governance v0.2.x候选、K2受控知识切片、Evidence、Audit与Replay任务规划
 事实基线：QPP基线`02ce1a8f79fe9e45a65d1d2a09b312e7297367e1`；本仓库固定基线`f264357b57339faa9129a067a225d4825b166c82`；`08_CURRENT_K2_OFFLINE_SLICE_STATUS_2026-09-02.md`；K2 team02/team03文档
@@ -82,16 +82,30 @@ PRODUCTION_READY = NO
 
 源码、Schema、Fixture、真实来源、网络采集、发布和生产接入均需单独授权。文档完成后必须提交、推送并向QPP 43号状态表回报远端SHA，才算正式可见任务。
 
-## 五、完成回报
+## 五、本轮执行回报
 
 ```ini
-DOCUMENT_PATH =
+DOCUMENT_PATH = docs/reports/INSTANCE1_V02X_K2_EVIDENCE_REVIEW_20260923.md
+LOCKED_SDK = 10.0.301
+SOLUTION_BUILD = PASS
+VERIFY_K2 = PASS
+K2_SCOPE = OFFLINE_K2_CONTRACT_AND_PERSISTENCE
+REAL_KNOWLEDGE_SOURCE = NOT_AUTHORIZED
+PRODUCTION_READY = NO
+```
+
+本轮完成的是既有离线验证入口和证据边界复核，不是 v0.2.1-alpha 发布，也不是 K2 全面实现。报告中的测试结果必须与其固定提交、命令和环境一起引用。
+
+## 六、正式可见性回报
+
+```ini
+DOCUMENT_PATH = docs/reports/INSTANCE1_V02X_K2_EVIDENCE_REVIEW_20260923.md
 REMOTE_REPOSITORY = full-spectrum-knowledge-governance-wikis-Home
-REMOTE_BRANCH =
-COMMIT_SHA =
-PUSH =
+REMOTE_BRANCH = instance1/kg-v02-k2-task-plan-20260923
+COMMIT_SHA = PENDING_AFTER_REVIEW
+PUSH = PENDING_AFTER_REVIEW
 QPP_43_REGISTRATION =
-CURRENT_EVIDENCE_STATUS =
-BLOCKERS =
-NEXT_GATE =
+CURRENT_EVIDENCE_STATUS = VERIFIED_IN_BOUNDED_OFFLINE_SCOPE
+BLOCKERS = V02_1_INDEPENDENT_PACKAGE_REVERIFY_OR_OWNER_RELEASE_DECISION
+NEXT_GATE = V02_1_CANDIDATE_INDEPENDENT_PACKAGE_REVERIFY_OR_OWNER_RELEASE_DECISION
 ```
