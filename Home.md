@@ -7,6 +7,7 @@
 
 最新实现记录（K2 team02）：
 
+- [Knowledge Governance v0.2.x / K2 / Evidence-Replay近期任务（2026-09-23）](./KG-v0.2x-K2-Evidence-Replay近期任务_20260923.md)
 - [K2 team02 离线受控来源与快照迭代（当前实现、测试与 WorkBuddy 验收入口）](./versions/K2/team02/K2-测试验收文档.md)
 - [K2 team02 WorkBuddy 最终验收证据](./versions/K2/team02/acceptance-logs/final-20260902-105500/acceptance-report.md)
 - [K2 team02 F1 锁文件复验（8dbaae9）](./versions/K2/team02/acceptance-logs/f1-lockfile-reverify-20260902-120400.md)

@@ -1,0 +1,97 @@
+# Knowledge Governance v0.2.x / K2 / Evidence-Replay近期任务
+
+创建时间：2026-09-23 09:40（Asia/Tokyo）
+最后更新时间：2026-09-23 09:40（Asia/Tokyo）
+文档编号：`FSP-KG-TASK-20260923-001`
+文档版本：`v1.0`
+文档状态：`DRAFT_FOR_HUMAN_REVIEW`
+责任实例/作者：实例1 / Knowledge Governance
+适用范围：Knowledge Governance v0.2.x候选、K2受控知识切片、Evidence、Audit与Replay任务规划
+事实基线：QPP基线`02ce1a8f79fe9e45a65d1d2a09b312e7297367e1`；本仓库固定基线`f264357b57339faa9129a067a225d4825b166c82`；`08_CURRENT_K2_OFFLINE_SLICE_STATUS_2026-09-02.md`；K2 team02/team03文档
+
+## 一、五问与状态边界
+
+```ini
+Q1_RESPONSIBLE_PRODUCT_OR_DOMAIN = KNOWLEDGE_GOVERNANCE_V02X_K2_EVIDENCE_REPLAY
+Q2_PRODUCT_VERSION_PHASE_OR_WORK_PACKAGE = V02X_CANDIDATE_MAINTENANCE; K2_CONTROLLED_SOURCE_SLICES; EVIDENCE_AUDIT_REPLAY_TASKS
+Q3_GOVERNANCE_LAYER_CONTEXT = NOT_APPLICABLE_TO_THIS_PRODUCT_PLANNING_TASK
+Q4_DEPENDENCIES_AND_FORBIDDEN_OWNERSHIP = PROTOCOL_SCHEMA_AND_AUTHORIZATION; ENGINE_INPUT_OUTPUT_CONTRACT; OBSERVER_RUNTIME_SNAPSHOT_AND_EVIDENCE; ACTIONSINK_RECEIPT_BOUNDARY; DO_NOT_ABSORB_OTHER_CORE_RESPONSIBILITIES
+Q5_MAXIMUM_EVIDENCE_STATUS = RELEASE_SPECIFIC_OR_VERIFIED_IN_BOUNDED_OFFLINE_SCOPE_ONLY
+FIVE_QUESTIONS = PASS
+DRIFT_CHECK = PASS
+```
+
+本文件是近期任务规划，不是源码授权、Schema冻结、真实知识源接入、网络采集、跨仓兼容或生产授权。
+
+## 二、当前真源状态
+
+```ini
+V02X_PRODUCT_LINE = RELEASE_SPECIFIC_WITH_CANDIDATE_SLICES
+K2_TEAM02_OFFLINE_SLICE = ACCEPTED_OR_VERIFIED_LOCALLY_AT_DECLARED_SCOPE; NOT_RELEASED
+K2_TEAM03_REAL_SOURCE_ADAPTER = DESIGNED; NOT_IMPLEMENTED; NOT_RELEASED
+FDE_I2 = CROSS_PROJECT_IMPLEMENTATION_SLICE; NOT_KG_PRODUCT_VERSION
+REAL_KNOWLEDGE_NETWORK = NOT_AUTHORIZED
+PRODUCTION_READY = NO
+```
+
+team02离线受控来源与快照切片的测试和验收结论必须保持其声明范围；team03真实来源适配器、Dynamic/Hybrid和网络能力继续停留在设计或未实现状态。任何状态提升必须重新绑定仓库提交、测试、Evidence和限制。
+
+## 三、近期任务包
+
+### 3.1 v0.2.x候选维护
+
+- 复核v0.2.0-alpha既有发布边界和v0.2.1候选材料；
+- 建立候选版本、Schema/合同、测试和Evidence的逐项登记；
+- 区分`RELEASED`、`CANDIDATE`、`NOT_RELEASED`和`NOT_PROVEN`；
+- 不把K2 team02、team03或FDE I2直接写成v0.2.x发布事实。
+
+### 3.2 K2受控知识切片
+
+- team02：维护离线受控来源、版本、适用范围、不可变Snapshot、Audit和Replay的边界；
+- team03：只维护真实来源适配器、凭据隔离、Dynamic/Hybrid的设计与门禁；
+- 任何真实来源接入必须另有人工授权、固定Evidence和失败关闭规则；
+- K2切片不得吸收Observer现实采集、Engine计算或Protocol授权职责。
+
+### 3.3 Evidence / Audit / Replay
+
+- 固定来源身份、版本、适用范围、内容摘要、Snapshot引用和Replay输入；
+- 对篡改、缺失、版本漂移、来源不可达和不确定结果保持失败关闭；
+- 记录原始输出、测试命令、环境、提交、摘要、Evidence路径和Known Limitations；
+- 关闭重开和历史Replay不得静默改写既有对象。
+
+### 3.4 跨仓接口准备
+
+- 仅整理Protocol、Engine、Observer和ActionSink需要消费的窄字段和摘要；
+- 不执行三存储组合测试；
+- 不把I2公开端口的固定测试结果升级为KG产品发布或一般兼容；
+- 组合真实性继续留待FDE组合门禁和独立复验。
+
+## 四、禁止范围与人工门禁
+
+```ini
+SOURCE_IMPLEMENTATION = NOT_AUTHORIZED_BY_THIS_DOCUMENT
+SCHEMA_FREEZE = NOT_AUTHORIZED
+REAL_KNOWLEDGE_SOURCE = NOT_AUTHORIZED
+REAL_NETWORK = NOT_AUTHORIZED
+THIRD_PARTY_INTEROPERABILITY = NOT_PROVEN
+FDE_COMPOSITION_EXECUTION = OUT_OF_SCOPE
+COMMIT = NOT_EXECUTED
+PUSH = NOT_EXECUTED
+PRODUCTION_READY = NO
+```
+
+源码、Schema、Fixture、真实来源、网络采集、发布和生产接入均需单独授权。文档完成后必须提交、推送并向QPP 43号状态表回报远端SHA，才算正式可见任务。
+
+## 五、完成回报
+
+```ini
+DOCUMENT_PATH =
+REMOTE_REPOSITORY = full-spectrum-knowledge-governance-wikis-Home
+REMOTE_BRANCH =
+COMMIT_SHA =
+PUSH =
+QPP_43_REGISTRATION =
+CURRENT_EVIDENCE_STATUS =
+BLOCKERS =
+NEXT_GATE =
+```
