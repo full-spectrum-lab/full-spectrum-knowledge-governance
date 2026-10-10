@@ -1,0 +1,213 @@
+{
+  "created_at": "2026-10-10T23:03:02.0649578+08:00",
+  "scope": "P1_TOOL_TEST_ONLY",
+  "powershell": "7.6.5",
+  "candidate_built": false,
+  "tests": [
+    {
+      "name": "fixture-0",
+      "passed": true,
+      "detail": "exit=0 expected=0 reason_match=True"
+    },
+    {
+      "name": "fixture-1",
+      "passed": true,
+      "detail": "exit=0 expected=0 reason_match=True"
+    },
+    {
+      "name": "two-process-fixture.json",
+      "passed": true,
+      "detail": "sha256=3FF73159A298413F110560B958279114AA87BB94827C0B3EBD60615D019005E9"
+    },
+    {
+      "name": "two-process-single-array.json",
+      "passed": true,
+      "detail": "sha256=7C167D64653CB54C79154E7E6163F78EB71C40DACBED5D6821D425A85CAFF7EF"
+    },
+    {
+      "name": "two-process-empty-array.json",
+      "passed": true,
+      "detail": "sha256=37517E5F3DC66819F61F5A7BB8ACE1921282415F10551D2DEFA5C3EB0985B570"
+    },
+    {
+      "name": "two-process-tool-fixture.zip",
+      "passed": true,
+      "detail": "sha256=A753C0DF5B5E3EE6E0E04337B708FA21A3757FF1035C34EF182B288512624898"
+    },
+    {
+      "name": "utf8-no-bom-lf-one-final-newline",
+      "passed": true,
+      "detail": "format fixed"
+    },
+    {
+      "name": "ordinal-keys-and-array-preservation",
+      "passed": true,
+      "detail": "case-sensitive keys and original arrays"
+    },
+    {
+      "name": "empty-array",
+      "passed": true,
+      "detail": "empty array kept"
+    },
+    {
+      "name": "singleton-array",
+      "passed": true,
+      "detail": "array not unwrapped"
+    },
+    {
+      "name": "bad-origin-0",
+      "passed": true,
+      "detail": "exit=1 expected=1 reason_match=True"
+    },
+    {
+      "name": "wrong-repository-0",
+      "passed": true,
+      "detail": "exit=1 expected=1 reason_match=True"
+    },
+    {
+      "name": "credentials-origin-0",
+      "passed": true,
+      "detail": "exit=1 expected=1 reason_match=True"
+    },
+    {
+      "name": "wrong-commit-0",
+      "passed": true,
+      "detail": "exit=1 expected=1 reason_match=True"
+    },
+    {
+      "name": "short-commit-0",
+      "passed": true,
+      "detail": "exit=1 expected=1 reason_match=True"
+    },
+    {
+      "name": "dirty-input-0",
+      "passed": true,
+      "detail": "exit=1 expected=1 reason_match=True"
+    },
+    {
+      "name": "existing-output-0",
+      "passed": true,
+      "detail": "exit=1 expected=1 reason_match=True"
+    },
+    {
+      "name": "traversal-output-0",
+      "passed": true,
+      "detail": "exit=1 expected=1 reason_match=True"
+    },
+    {
+      "name": "absolute-output-0",
+      "passed": true,
+      "detail": "exit=1 expected=1 reason_match=True"
+    },
+    {
+      "name": "missing-root-0",
+      "passed": true,
+      "detail": "exit=1 expected=1 reason_match=True"
+    },
+    {
+      "name": "wrong-sourcelink-0",
+      "passed": true,
+      "detail": "exit=1 expected=1 reason_match=True"
+    },
+    {
+      "name": "dirty-entrypoint-0",
+      "passed": true,
+      "detail": "exit=1 expected=1 reason_match=True"
+    },
+    {
+      "name": "real-pdb-sourcelink-positive",
+      "passed": true,
+      "detail": "read-only metadata; no assembly execution"
+    },
+    {
+      "name": "missing-sourcelink-0",
+      "passed": true,
+      "detail": "exit=1 expected=1 reason_match=True"
+    },
+    {
+      "name": "wrong-pdb-commit-0",
+      "passed": true,
+      "detail": "exit=1 expected=1 reason_match=True"
+    },
+    {
+      "name": "canonical-origin-positive",
+      "passed": true,
+      "detail": "HTTPS and approved SSH accepted"
+    },
+    {
+      "name": "clean-source-positive",
+      "passed": true,
+      "detail": "existing diagnostic clean clone; no build"
+    },
+    {
+      "name": "pinned-toolchain-positive",
+      "passed": true,
+      "detail": "sdk=10.0.301 powershell=7.6.5 runtime=10.0.11"
+    },
+    {
+      "name": "new-output-nonmutating",
+      "passed": true,
+      "detail": "validation does not create or delete outputs"
+    },
+    {
+      "name": "legacy-serializer-default-equivalence",
+      "passed": true,
+      "detail": "same-process comparison to original expression"
+    },
+    {
+      "name": "legacy-files-default-equivalence",
+      "passed": true,
+      "detail": "matches original ordering expression"
+    },
+    {
+      "name": "candidate-stable-writer-routing",
+      "passed": true,
+      "detail": "shared wrapper selects stable helper"
+    },
+    {
+      "name": "candidate-no-hardcoded-pass-static",
+      "passed": true,
+      "detail": "candidate branch only; not a full build"
+    },
+    {
+      "name": "legacy-removal-is-candidate-disabled-static",
+      "passed": true,
+      "detail": "destructive legacy branch unavailable to candidate mode"
+    },
+    {
+      "name": "parse-candidate-packaging-tools.ps1",
+      "passed": true,
+      "detail": "PowerShell AST parse"
+    },
+    {
+      "name": "parse-package-v0.1.1-alpha.ps1",
+      "passed": true,
+      "detail": "PowerShell AST parse"
+    },
+    {
+      "name": "parse-package-v0.2.0-alpha.ps1",
+      "passed": true,
+      "detail": "PowerShell AST parse"
+    },
+    {
+      "name": "parse-package-v0.2.1-alpha.ps1",
+      "passed": true,
+      "detail": "PowerShell AST parse"
+    },
+    {
+      "name": "parse-test-candidate-packaging-tools.ps1",
+      "passed": true,
+      "detail": "PowerShell AST parse"
+    },
+    {
+      "name": "parse-verify-package-v0.2.0-alpha.ps1",
+      "passed": true,
+      "detail": "PowerShell AST parse"
+    },
+    {
+      "name": "parse-verify-package-v0.2.1-alpha.ps1",
+      "passed": true,
+      "detail": "PowerShell AST parse"
+    }
+  ]
+}

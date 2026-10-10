@@ -1,0 +1,7 @@
+{
+  "nested": {
+    "b": 2,
+    "a": 1
+  },
+  "identity": "legacy"
+}

@@ -1,4 +1,31 @@
+param(
+    [switch]$DeterministicCandidate,
+    [string]$ExpectedCommit,
+    [string]$CandidateOutputRoot
+)
 $ErrorActionPreference = "Stop"
+
+if ($DeterministicCandidate) {
+    . (Join-Path $PSScriptRoot 'candidate-packaging-tools.ps1')
+    if ($PSVersionTable.PSVersion.Major -lt 7) { throw 'Candidate packaging requires PowerShell 7 or later.' }
+}
+
+function Write-KgPackagingJson {
+    param([Parameter(ValueFromPipeline = $true)]$Value, [string]$Path)
+    process {
+        if ($DeterministicCandidate) {
+            if ($Value -is [Collections.IDictionary] -and $Value.ContainsKey('manifest_version')) { $Value['build_environment'] = $candidateToolchain }
+            Write-KgStableJson -Value $Value -Path $Path
+        }
+        else { $Value | ConvertTo-Json -Depth 8 | Set-Content -Encoding utf8 $Path }
+    }
+}
+
+function Get-KgPackagingFiles {
+    param([string]$Root)
+    if ($DeterministicCandidate) { Get-KgOrdinalFiles -Root $Root }
+    else { Get-ChildItem -LiteralPath $Root -File -Recurse | Sort-Object FullName }
+}
 
 if (-not [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
         [System.Runtime.InteropServices.OSPlatform]::Windows) -or
@@ -9,6 +36,10 @@ if (-not [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
 
 $root = Split-Path -Parent $PSScriptRoot
 $dotnet = if ($env:DOTNET_EXE) { $env:DOTNET_EXE } else { "dotnet" }
+if ($DeterministicCandidate) {
+    Assert-KgCandidateSource -Repository $root -ExpectedCommit $ExpectedCommit
+    $candidateToolchain = Get-KgCandidateToolchain -Repository $root -Dotnet $dotnet
+}
 $commit = (& git -C $root rev-parse HEAD).Trim()
 if ($LASTEXITCODE -ne 0 -or $commit -notmatch '^[0-9a-f]{40}$') {
     throw "A clean Git commit identity is required."
@@ -30,9 +61,13 @@ if ($releaseVersion -notmatch '^[0-9]+\.[0-9]+\.[0-9]+-[0-9A-Za-z.-]+$') {
     throw "Invalid release version: $releaseVersion"
 }
 $version = "v$releaseVersion"
-$output = Join-Path $root "artifacts/release/$version"
+if ($DeterministicCandidate -and $releaseVersion -ne '0.2.1-alpha') { throw 'Deterministic candidate mode is restricted to v0.2.1-alpha.' }
+$output = if ($DeterministicCandidate) {
+    Assert-KgNewOutputDirectory -Root $CandidateOutputRoot -RelativeName "$version-$commit"
+} else { Join-Path $root "artifacts/release/$version" }
 $stage = Join-Path $output "package"
-if (Test-Path -LiteralPath $output) { Remove-Item -LiteralPath $output -Recurse -Force }
+if (-not $DeterministicCandidate -and (Test-Path -LiteralPath $output)) { Remove-Item -LiteralPath $output -Recurse -Force }
+if ($DeterministicCandidate) { New-Item -ItemType Directory -Path $output -ErrorAction Stop | Out-Null }
 New-Item -ItemType Directory -Path $stage | Out-Null
 
 Push-Location $root
@@ -60,6 +95,17 @@ try {
         --self-contained false @common `
         -o (Join-Path $stage "library")
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+    if ($DeterministicCandidate) {
+        foreach ($payload in @('bin', 'library')) {
+            $pdbs = @(Get-ChildItem -LiteralPath (Join-Path $stage $payload) -Filter '*.pdb' -File)
+            if ($pdbs.Count -eq 0) { throw "Missing SourceLink PDBs in $payload." }
+            foreach ($pdb in $pdbs) { Assert-KgPortablePdbSourceLink -Path $pdb.FullName -ExpectedCommit $commit }
+            foreach ($dll in Get-ChildItem -LiteralPath (Join-Path $stage $payload) -Filter 'FullSpectrum.Knowledge.*.dll' -File) {
+                if (-not (Test-Path -LiteralPath ([IO.Path]::ChangeExtension($dll.FullName, '.pdb')))) { throw 'KG DLL has no corresponding PDB.' }
+            }
+        }
+    }
 
     # Fail closed when NuGet restore or publish metadata drifts from the release
     # identity. A successful compilation alone is not sufficient evidence.
@@ -104,11 +150,10 @@ try {
         native_sqlite_external_reverify = "EXTERNAL_REQUIRED"
         production_ready = $false
         standard_json_schema_validator = "NOT_EXECUTED"
-    } | ConvertTo-Json -Depth 8 | Set-Content -Encoding utf8 (Join-Path $stage "PACKAGE_MANIFEST.json")
+    } | Write-KgPackagingJson -Path (Join-Path $stage "PACKAGE_MANIFEST.json")
 
-    $filesForSbom = Get-ChildItem -LiteralPath $stage -File -Recurse |
-        Where-Object { $_.Name -notin @("SBOM.package.spdx.json", "SHA256SUMS") } |
-        Sort-Object FullName
+    $filesForSbom = Get-KgPackagingFiles -Root $stage |
+        Where-Object { $_.Name -notin @("SBOM.package.spdx.json", "SHA256SUMS") }
     $spdxFiles = $filesForSbom | ForEach-Object {
         $relative = $_.FullName.Substring($stage.Length).TrimStart('\').Replace('\','/')
         $identityHasher = [Security.Cryptography.SHA256]::Create()
@@ -153,14 +198,16 @@ try {
         ) + @($spdxFiles | ForEach-Object {
             @{ spdxElementId = "SPDXRef-Package"; relationshipType = "CONTAINS"; relatedSpdxElement = $_.SPDXID }
         })
-    } | ConvertTo-Json -Depth 8 | Set-Content -Encoding utf8 (Join-Path $stage "SBOM.package.spdx.json")
+    } | Write-KgPackagingJson -Path (Join-Path $stage "SBOM.package.spdx.json")
 
-    $packageFiles = Get-ChildItem -LiteralPath $stage -File -Recurse |
-        Where-Object { $_.Name -ne "SHA256SUMS" } | Sort-Object FullName
-    $packageFiles | ForEach-Object {
+    $packageFiles = Get-KgPackagingFiles -Root $stage |
+        Where-Object { $_.Name -ne "SHA256SUMS" }
+    $digestLines = @($packageFiles | ForEach-Object {
         $relative = $_.FullName.Substring($stage.Length).TrimStart('\').Replace('\','/')
         "{0}  ./{1}" -f (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(), $relative
-    } | Set-Content -Encoding ascii (Join-Path $stage "SHA256SUMS")
+    })
+    if ($DeterministicCandidate) { [IO.File]::WriteAllText((Join-Path $stage 'SHA256SUMS'), ($digestLines -join "`n") + "`n", [Text.UTF8Encoding]::new($false)) }
+    else { $digestLines | Set-Content -Encoding ascii (Join-Path $stage "SHA256SUMS") }
 
     # ZIP metadata is normalized to the release commit time so repeated packaging
     # of the same clean commit can be checked for byte-for-byte reproducibility.
@@ -172,7 +219,7 @@ try {
     $archiveStream = [IO.File]::Open($archive, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
     $zip = [IO.Compression.ZipArchive]::new($archiveStream, [IO.Compression.ZipArchiveMode]::Create, $false)
     try {
-        Get-ChildItem -LiteralPath $stage -File -Recurse | Sort-Object FullName | ForEach-Object {
+        Get-KgPackagingFiles -Root $stage | ForEach-Object {
             $relative = $_.FullName.Substring($stage.Length).TrimStart('\').Replace('\','/')
             $entry = $zip.CreateEntry($relative, [IO.Compression.CompressionLevel]::Optimal)
             $entry.LastWriteTime = [DateTimeOffset]$fixedTimestamp
@@ -190,7 +237,8 @@ try {
         $archiveStream.Dispose()
     }
     $archiveHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $archive).Hash.ToLowerInvariant()
-    "$archiveHash  $(Split-Path -Leaf $archive)" | Set-Content -Encoding ascii (Join-Path $output "SHA256SUMS")
+    if ($DeterministicCandidate) { [IO.File]::WriteAllText((Join-Path $output 'SHA256SUMS'), "$archiveHash  $(Split-Path -Leaf $archive)`n", [Text.UTF8Encoding]::new($false)) }
+    else { "$archiveHash  $(Split-Path -Leaf $archive)" | Set-Content -Encoding ascii (Join-Path $output "SHA256SUMS") }
 
     @{
         manifest_version = "1.0"
@@ -207,15 +255,15 @@ try {
             preflight = "bin/FullSpectrum.Knowledge.TestHost.exe verify-k0-02"
         }
         native_sqlite_external_reverify = "EXTERNAL_REQUIRED"
-        tests = @{ passed = 92; total = 92 }
-        schemas = @{ valid = 13; total = 13 }
-        golden = "PASS"
+        tests = if ($DeterministicCandidate) { @{ status = 'NOT_EXECUTED' } } else { @{ passed = 92; total = 92 } }
+        schemas = if ($DeterministicCandidate) { @{ status = 'NOT_EXECUTED' } } else { @{ valid = 13; total = 13 } }
+        golden = if ($DeterministicCandidate) { 'NOT_EXECUTED' } else { 'PASS' }
         production_ready = $false
         linux_test = "NOT_EXECUTED"
         macos_test = "NOT_EXECUTED"
         standard_json_schema_validator = "NOT_EXECUTED"
-        reproducibility = "CONTENT_AND_IDENTITY_VERIFIED; ARCHIVE_BYTE_REPRODUCIBILITY_NOT_EXECUTED"
-    } | ConvertTo-Json -Depth 8 | Set-Content -Encoding utf8 (Join-Path $output "RELEASE_MANIFEST.json")
+        reproducibility = if ($DeterministicCandidate) { 'NOT_EXECUTED' } else { "CONTENT_AND_IDENTITY_VERIFIED; ARCHIVE_BYTE_REPRODUCIBILITY_NOT_EXECUTED" }
+    } | Write-KgPackagingJson -Path (Join-Path $output "RELEASE_MANIFEST.json")
 
     Write-Output "PACKAGE=$archive"
     Write-Output "SHA256=$archiveHash"

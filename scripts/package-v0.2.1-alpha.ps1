@@ -1,3 +1,7 @@
+param(
+    [Parameter(Mandatory = $true)][string]$ExpectedCommit,
+    [Parameter(Mandatory = $true)][string]$CandidateOutputRoot
+)
 $ErrorActionPreference = "Stop"
 
 # v0.2.1 keeps the v0.2 packaging contract while fixing publish identity
@@ -5,7 +9,8 @@ $ErrorActionPreference = "Stop"
 $previous = $env:FSKG_PACKAGE_VERSION
 try {
     $env:FSKG_PACKAGE_VERSION = "0.2.1-alpha"
-    & (Join-Path $PSScriptRoot "package-v0.2.0-alpha.ps1")
+    & (Join-Path $PSScriptRoot "package-v0.2.0-alpha.ps1") `
+        -DeterministicCandidate -ExpectedCommit $ExpectedCommit -CandidateOutputRoot $CandidateOutputRoot
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 finally {
