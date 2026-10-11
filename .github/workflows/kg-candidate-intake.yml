@@ -1,0 +1,57 @@
+# Created: 2026-10-11T16:48:00+08:00; Updated: 2026-10-11T17:31:00+08:00; Timezone: Asia/Shanghai
+# ID: KG-CI-INTAKE-WORKFLOW-20261011; Version: v0.2-local-context-fix
+# Status: LOCAL_FIX_PENDING_REVIEW_NOT_PUSHED_NOT_EXECUTED; Owner: Instance1
+# Scope: Transfer two existing QPP Git blobs into Actions artifact; never execute ZIP
+# Baseline: QPP b6e27e656552e27c848000e695b2cb0b8d16ff6b / KG 1295c27c
+name: KG existing candidate controlled intake
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  intake-existing-candidate:
+    if: github.repository == 'full-spectrum-lab/full-spectrum-knowledge-governance'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: kg-candidate-validation
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Initialize isolated intake workspace
+        run: |
+          $ErrorActionPreference = 'Stop'
+          foreach ($key in @('RUNNER_TEMP', 'GITHUB_ENV', 'GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT')) {
+            if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($key))) { throw "Missing runner variable: $key" }
+          }
+          $root = Join-Path $env:RUNNER_TEMP "kg-intake-$($env:GITHUB_RUN_ID)-$($env:GITHUB_RUN_ATTEMPT)"
+          "KG_INTAKE_ROOT=$root" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Checkout approved intake harness
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          path: harness
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Fetch exactly two fixed original blobs; no candidate execution
+        run: |
+          & ./harness/ci/windows-candidate/prepare-intake.ps1
+      - name: Upload original candidate and manifest only
+        id: candidate
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: kg-candidate-input-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.KG_INTAKE_ROOT }}/input/
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+      - name: Upload acquisition trace even on failure
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: kg-intake-trace-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.KG_INTAKE_ROOT }}/evidence/
+          if-no-files-found: error
+          retention-days: 30
+# Source Run success and candidate Artifact ID must be approved before Windows dispatch.
+
