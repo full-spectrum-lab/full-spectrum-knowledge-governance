@@ -1,0 +1,103 @@
+# Created: 2026-10-11T16:18:00+08:00; Updated: 2026-10-11T16:48:00+08:00
+# Timezone: Asia/Shanghai; ID: KG-WIN-CI-WORKFLOW-20261011; Version: v0.2-preparation
+# Status: LOCAL_PREPARATION_PENDING_REVIEW_NOT_DEPLOYED; Owner: Instance 1
+# Scope: Existing candidate verification, not KG build/release
+# Baseline: validator 1295c27cd3409cb5395c04cd29378cb2610ab2ed; QPP b6e27e656552e27c848000e695b2cb0b8d16ff6b
+# Intended path after separate approval: .github/workflows/kg-windows-candidate.yml
+# Stored in a local non-repository payload; not deployed to GitHub.
+# Existing flow reviewed under 06B0C2BD...; deployment/registration/dispatch still require approval.
+name: KG existing Windows candidate verification
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Human-approved candidate intake Run ID
+        required: true
+        type: string
+      source_artifact_id:
+        description: Human-approved candidate intake Artifact ID
+        required: true
+        type: string
+      transport_sha256:
+        description: Approved SHA256 of the outer Actions artifact ZIP (not KG ZIP)
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: kg-existing-candidate-${{ github.run_id }}
+  cancel-in-progress: false
+jobs:
+  verify-existing-package:
+    if: github.repository == 'full-spectrum-lab/full-spectrum-knowledge-governance'
+    runs-on: windows-2022
+    timeout-minutes: 30
+    environment: kg-candidate-validation
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      KG_ROOT: ${{ runner.temp }}/kg-validation-${{ github.run_id }}-${{ github.run_attempt }}
+      KG_VALIDATOR_COMMIT: 1295c27cd3409cb5395c04cd29378cb2610ab2ed
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_SKIP_FIRST_TIME_EXPERIENCE: '1'
+    steps:
+      - name: Checkout separately approved CI harness commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          path: harness
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Checkout fixed existing validator
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 1295c27cd3409cb5395c04cd29378cb2610ab2ed
+          path: validator
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Acquire and authenticate candidate before payload execution
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INTAKE_RUN_ID: ${{ inputs.source_run_id }}
+          INTAKE_ARTIFACT_ID: ${{ inputs.source_artifact_id }}
+          INTAKE_TRANSPORT_SHA256: ${{ inputs.transport_sha256 }}
+        run: |
+          & ./harness/ci/windows-candidate/acquire-candidate.ps1
+      - name: Install isolated approved SDK (not candidate build)
+        env:
+          APPROVED_INSTALLER_SHA256: E8B873E18A81E5C4CD8AB69D84DAC8FEAD291D50B3C44633CD7FDDAD709A13D6
+        run: |
+          $ErrorActionPreference='Stop'
+          if ($env:APPROVED_INSTALLER_SHA256 -notmatch '^[0-9a-fA-F]{64}$') { throw 'Installer approval missing.' }
+          $installer=Join-Path $env:KG_ROOT 'dotnet-install.ps1'
+          Invoke-WebRequest 'https://dot.net/v1/dotnet-install.ps1' -OutFile $installer
+          if ((Get-FileHash $installer).Hash -ne $env:APPROVED_INSTALLER_SHA256) { throw 'Installer identity mismatch.' }
+          $sdkRoot=Join-Path $env:KG_ROOT 'dotnet'
+          & $installer -Version 10.0.301 -Architecture x64 -InstallDir $sdkRoot -NoPath *> (Join-Path $env:KG_ROOT 'evidence/sdk-install.log')
+          if (!$?) { throw 'SDK installation failed.' }
+          $exe=Join-Path $sdkRoot 'dotnet.exe'
+          if ((& $exe --version) -cne '10.0.301') { throw 'SDK version mismatch.' }
+          if (!((& $exe --list-runtimes) -match '^Microsoft.NETCore.App 10\.0\.9 ')) { throw 'Runtime 10.0.9 missing.' }
+          "DOTNET_EXE=$exe" >> $env:GITHUB_ENV
+          "DOTNET_ROOT=$sdkRoot" >> $env:GITHUB_ENV
+          'DOTNET_MULTILEVEL_LOOKUP=0' >> $env:GITHUB_ENV
+      - name: Verify package using pinned validator; no product rebuild
+        run: |
+          & ./harness/ci/windows-candidate/verify-ci-candidate.ps1 -ValidatorRoot ./validator
+      - name: Index limited evidence even on failure
+        if: always()
+        run: |
+          & ./harness/ci/windows-candidate/index-ci-evidence.ps1
+      - name: Upload evidence, including failure logs
+        if: always()
+        id: evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: kg-candidate-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.KG_ROOT }}/evidence/
+          if-no-files-found: error
+          retention-days: 30
+# Instance 6 must independently resolve numeric Job ID and upload artifact id/digest
+# from this Run ID/attempt; upload success is not verification PASS.
