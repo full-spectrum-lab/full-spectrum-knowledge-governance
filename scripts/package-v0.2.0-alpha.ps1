@@ -240,7 +240,7 @@ try {
     if ($DeterministicCandidate) { [IO.File]::WriteAllText((Join-Path $output 'SHA256SUMS'), "$archiveHash  $(Split-Path -Leaf $archive)`n", [Text.UTF8Encoding]::new($false)) }
     else { "$archiveHash  $(Split-Path -Leaf $archive)" | Set-Content -Encoding ascii (Join-Path $output "SHA256SUMS") }
 
-    @{
+    $releaseRecord = @{
         manifest_version = "1.0"
         version = $version
         release_commit = $commit
@@ -263,7 +263,13 @@ try {
         macos_test = "NOT_EXECUTED"
         standard_json_schema_validator = "NOT_EXECUTED"
         reproducibility = if ($DeterministicCandidate) { 'NOT_EXECUTED' } else { "CONTENT_AND_IDENTITY_VERIFIED; ARCHIVE_BYTE_REPRODUCIBILITY_NOT_EXECUTED" }
-    } | Write-KgPackagingJson -Path (Join-Path $output "RELEASE_MANIFEST.json")
+    }
+    if ($DeterministicCandidate) {
+        $releaseRecord['build_environment'] = $candidateToolchain
+        Write-KgCandidateReleaseManifest -Value $releaseRecord -Path (Join-Path $output 'RELEASE_MANIFEST.json') -ArchivePath $archive
+    } else {
+        $releaseRecord | Write-KgPackagingJson -Path (Join-Path $output 'RELEASE_MANIFEST.json')
+    }
 
     Write-Output "PACKAGE=$archive"
     Write-Output "SHA256=$archiveHash"

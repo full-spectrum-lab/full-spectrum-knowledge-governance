@@ -1,0 +1,167 @@
+diff --git a/scripts/candidate-packaging-tools.ps1 b/scripts/candidate-packaging-tools.ps1
+index 3b409b3..e8cf48c 100644
+--- a/scripts/candidate-packaging-tools.ps1
++++ b/scripts/candidate-packaging-tools.ps1
+@@ -3,29 +3,63 @@ function ConvertTo-KgStableJsonValue {
+     param([AllowNull()]$Value, [int]$Depth = 0)
+     if ($Depth -gt 32) { throw 'Candidate JSON depth exceeds 32.' }
+     if ($null -eq $Value) { return $null }
+-    if ($Value -is [Collections.IDictionary] -or $Value -is [pscustomobject]) {
++    # Cmdlet-returned scalars may also match [pscustomobject]. Preserve their
++    # underlying JSON type before inspecting adapted PSObject properties.
++    if ($Value -is [string] -or $Value -is [bool] -or $Value -is [byte] -or
++        $Value -is [int16] -or $Value -is [int32] -or $Value -is [int64] -or
++        $Value -is [uint16] -or $Value -is [uint32] -or $Value -is [uint64] -or $Value -is [decimal]) { return $Value.PSObject.BaseObject }
++    if ($Value -is [array] -or $Value -is [Collections.IList]) {
++        $result = @()
++        foreach ($child in $Value) { $result += ,(ConvertTo-KgStableJsonValue -Value $child -Depth ($Depth + 1)) }
++        return ,$result
++    }
++    if ($Value -is [Collections.IDictionary] -or $Value.PSObject.BaseObject -is [Management.Automation.PSCustomObject]) {
+         $names = if ($Value -is [Collections.IDictionary]) { @($Value.Keys) } else { @($Value.PSObject.Properties.Name) }
+         foreach ($name in $names) { if ($name -isnot [string]) { throw 'JSON object keys must be strings.' } }
+         [string[]]$keys = @($names)
+         [Array]::Sort($keys, [StringComparer]::Ordinal)
+         $result = [Collections.Specialized.OrderedDictionary]::new([StringComparer]::Ordinal)
+         foreach ($key in $keys) {
+-            $child = if ($Value -is [Collections.IDictionary]) { $Value[$key] } else { $Value.PSObject.Properties[$key].Value }
++            # Do not route child values through an if-expression pipeline: it
++            # unwraps singleton arrays and drops empty arrays.
++            if ($Value -is [Collections.IDictionary]) { $child = $Value[$key] }
++            else { $child = $Value.PSObject.Properties[$key].Value }
+             $result.Add($key, (ConvertTo-KgStableJsonValue -Value $child -Depth ($Depth + 1)))
+         }
+         return ,$result
+     }
+-    if ($Value -is [array] -or $Value -is [Collections.IList]) {
+-        $result = @()
+-        foreach ($child in $Value) { $result += ,(ConvertTo-KgStableJsonValue -Value $child -Depth ($Depth + 1)) }
+-        return ,$result
+-    }
+-    if ($Value -is [string] -or $Value -is [bool] -or $Value -is [byte] -or
+-        $Value -is [int16] -or $Value -is [int32] -or $Value -is [int64] -or
+-        $Value -is [uint16] -or $Value -is [uint32] -or $Value -is [uint64] -or $Value -is [decimal]) { return $Value }
+     throw "Unsupported candidate JSON value type: $($Value.GetType().FullName)"
+ }
+ 
++function Assert-KgCandidateArtifactIdentity {
++    param([Parameter(Mandatory)]$Manifest, [Parameter(Mandatory)][string]$ArchivePath)
++    $artifact = $Manifest.artifact
++    if ($artifact -isnot [string] -or [string]::IsNullOrWhiteSpace($artifact)) {
++        throw 'Candidate artifact must be a nonempty string.'
++    }
++    if ($artifact -cne $artifact.Trim() -or $artifact -match '[\\/:\x00-\x1f\x7f]' -or
++        $artifact -in @('.', '..') -or [IO.Path]::IsPathRooted($artifact)) {
++        throw 'Candidate artifact must be a single safe ZIP filename.'
++    }
++    if ($Manifest.version -cne 'v0.2.1-alpha' -or $Manifest.target -cne 'win-x64') {
++        throw 'Candidate artifact version or target mismatch.'
++    }
++    $expected = 'full-spectrum-knowledge-governance-v0.2.1-alpha-win-x64.zip'
++    if (-not [string]::Equals($artifact, $expected, [StringComparison]::Ordinal) -or
++        -not [string]::Equals($artifact, [IO.Path]::GetFileName($ArchivePath), [StringComparison]::Ordinal)) {
++        throw 'Candidate artifact filename mismatch.'
++    }
++}
++
++function Write-KgCandidateReleaseManifest {
++    param([Parameter(Mandatory)]$Value, [Parameter(Mandatory)][string]$Path,
++        [Parameter(Mandatory)][string]$ArchivePath)
++    Assert-KgCandidateArtifactIdentity -Manifest $Value -ArchivePath $ArchivePath
++    Write-KgStableJson -Value $Value -Path $Path
++    $written = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
++    Assert-KgCandidateArtifactIdentity -Manifest $written -ArchivePath $ArchivePath
++}
++
+ function Write-KgStableJson {
+     param([Parameter(Mandatory)][AllowNull()]$Value, [Parameter(Mandatory)][string]$Path)
+     if ($PSVersionTable.PSVersion.Major -lt 7) { throw 'Candidate tooling requires PowerShell 7 or later.' }
+diff --git a/scripts/package-v0.2.0-alpha.ps1 b/scripts/package-v0.2.0-alpha.ps1
+index 66644e0..ae51a7a 100644
+--- a/scripts/package-v0.2.0-alpha.ps1
++++ b/scripts/package-v0.2.0-alpha.ps1
+@@ -240,7 +240,7 @@ try {
+     if ($DeterministicCandidate) { [IO.File]::WriteAllText((Join-Path $output 'SHA256SUMS'), "$archiveHash  $(Split-Path -Leaf $archive)`n", [Text.UTF8Encoding]::new($false)) }
+     else { "$archiveHash  $(Split-Path -Leaf $archive)" | Set-Content -Encoding ascii (Join-Path $output "SHA256SUMS") }
+ 
+-    @{
++    $releaseRecord = @{
+         manifest_version = "1.0"
+         version = $version
+         release_commit = $commit
+@@ -263,7 +263,13 @@ try {
+         macos_test = "NOT_EXECUTED"
+         standard_json_schema_validator = "NOT_EXECUTED"
+         reproducibility = if ($DeterministicCandidate) { 'NOT_EXECUTED' } else { "CONTENT_AND_IDENTITY_VERIFIED; ARCHIVE_BYTE_REPRODUCIBILITY_NOT_EXECUTED" }
+-    } | Write-KgPackagingJson -Path (Join-Path $output "RELEASE_MANIFEST.json")
++    }
++    if ($DeterministicCandidate) {
++        $releaseRecord['build_environment'] = $candidateToolchain
++        Write-KgCandidateReleaseManifest -Value $releaseRecord -Path (Join-Path $output 'RELEASE_MANIFEST.json') -ArchivePath $archive
++    } else {
++        $releaseRecord | Write-KgPackagingJson -Path (Join-Path $output 'RELEASE_MANIFEST.json')
++    }
+ 
+     Write-Output "PACKAGE=$archive"
+     Write-Output "SHA256=$archiveHash"
+diff --git a/scripts/test-candidate-packaging-tools.ps1 b/scripts/test-candidate-packaging-tools.ps1
+index 0d64d57..3e2578b 100644
+--- a/scripts/test-candidate-packaging-tools.ps1
++++ b/scripts/test-candidate-packaging-tools.ps1
+@@ -4,11 +4,15 @@ param(
+     [string]$InputPath,
+     [int]$Order = 0,
+     [string]$SourceLinkPdb,
+-    [string]$MissingSourceLinkPdb
++    [string]$MissingSourceLinkPdb,
++    [Parameter(Mandatory)][string]$ExpectedCommit,
++    [string]$CleanRepository,
++    [string]$Dotnet = 'dotnet'
+ )
+ $ErrorActionPreference = 'Stop'
+ . (Join-Path $PSScriptRoot 'candidate-packaging-tools.ps1')
+-$commit = '2517afc7ca315ec0d02f9f52bdbe3f39bc7f0a50'
++$commit = $ExpectedCommit
++if ($commit -cnotmatch '^[0-9a-f]{40}$') { throw 'Explicit full expected commit required.' }
+ 
+ # Child cases never compile KG or create a product candidate.
+ if ($Case -ne 'all') {
+@@ -75,7 +79,7 @@ function Record($Name,$Passed,$Detail) {
+ }
+ function Child($Name,$ExpectedExit,[string]$Path='',[int]$Sequence=0) {
+     $log = Join-Path $EvidenceRoot "$Name-$Sequence.log"
+-    & $pwsh -NoLogo -NoProfile -File $PSCommandPath -Case $Name -EvidenceRoot $EvidenceRoot -InputPath $Path -Order $Sequence 2>&1 | Tee-Object -FilePath $log
++    & $pwsh -NoLogo -NoProfile -File $PSCommandPath -Case $Name -EvidenceRoot $EvidenceRoot -InputPath $Path -Order $Sequence -ExpectedCommit $commit 2>&1 | Tee-Object -FilePath $log
+     $code = $LASTEXITCODE
+     $reasons = @{
+         'bad-origin'='origin is not'; 'wrong-repository'='origin is not'; 'credentials-origin'='origin is not'
+@@ -113,10 +117,10 @@ try {
+     Child 'wrong-pdb-commit' 1 $SourceLinkPdb
+     foreach ($origin in @('https://github.com/full-spectrum-lab/full-spectrum-knowledge-governance.git','git@github.com:full-spectrum-lab/full-spectrum-knowledge-governance.git')) { Assert-KgCanonicalOrigin $origin }
+     Record 'canonical-origin-positive' $true 'HTTPS and approved SSH accepted'
+-    $cleanRepository = Split-Path (Split-Path (Split-Path (Split-Path (Split-Path $SourceLinkPdb -Parent) -Parent) -Parent) -Parent) -Parent
+-    Assert-KgCandidateSource -Repository $cleanRepository -ExpectedCommit $commit
++    if (-not $CleanRepository) { throw 'Explicit clean diagnostic repository required.' }
++    Assert-KgCandidateSource -Repository $CleanRepository -ExpectedCommit $commit
+     Record 'clean-source-positive' $true 'existing diagnostic clean clone; no build'
+-    $toolchain = Get-KgCandidateToolchain -Repository (Split-Path $PSScriptRoot -Parent) -Dotnet 'C:\Users\wangjian0926\.dotnet\dotnet.exe'
++    $toolchain = Get-KgCandidateToolchain -Repository (Split-Path $PSScriptRoot -Parent) -Dotnet $Dotnet
+     Record 'pinned-toolchain-positive' ($toolchain.sdk -ceq '10.0.301') "sdk=$($toolchain.sdk) powershell=$($toolchain.powershell) runtime=$($toolchain.packaging_runtime)"
+     $new = Assert-KgNewOutputDirectory -Root $EvidenceRoot -RelativeName 'unused-output'
+     Record 'new-output-nonmutating' (-not (Test-Path -LiteralPath $new)) 'validation does not create or delete outputs'
+diff --git a/scripts/verify-package-v0.2.0-alpha.ps1 b/scripts/verify-package-v0.2.0-alpha.ps1
+index 866a085..3a06dfd 100644
+--- a/scripts/verify-package-v0.2.0-alpha.ps1
++++ b/scripts/verify-package-v0.2.0-alpha.ps1
+@@ -12,6 +12,11 @@ $dotnetCommand = Get-Command $dotnet -ErrorAction Stop
+ if (-not $env:DOTNET_ROOT) { $env:DOTNET_ROOT = Split-Path -Parent $dotnetCommand.Source }
+ $packagePath = (Resolve-Path -LiteralPath $Package).Path
+ $releaseManifestPath = (Resolve-Path -LiteralPath $ReleaseManifest).Path
++if ($ExpectedVersion.TrimStart('v') -ceq '0.2.1-alpha') {
++    . (Join-Path $PSScriptRoot 'candidate-packaging-tools.ps1')
++    $candidateRelease = Get-Content -LiteralPath $releaseManifestPath -Raw | ConvertFrom-Json
++    Assert-KgCandidateArtifactIdentity -Manifest $candidateRelease -ArchivePath $packagePath
++}
+ $auditPath = [IO.Path]::GetFullPath($AuditRoot)
+ if (Test-Path -LiteralPath $auditPath) {
+     throw "AuditRoot must not already exist: $auditPath"

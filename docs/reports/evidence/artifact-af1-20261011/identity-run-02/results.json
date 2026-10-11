@@ -1,0 +1,193 @@
+{
+  "created_at": "2026-10-11T05:02:20.9139761+08:00",
+  "scope": "AF1_TOOL_ONLY",
+  "candidate_built": false,
+  "powershell": "7.6.5",
+  "tests": [
+    {
+      "name": "serialize-process-0",
+      "pass": true,
+      "detail": "real command output and actual producer AST executed"
+    },
+    {
+      "name": "serialize-process-1",
+      "pass": true,
+      "detail": "real command output and actual producer AST executed"
+    },
+    {
+      "name": "two-process-scalars.json",
+      "pass": true,
+      "detail": "raw JSON bytes"
+    },
+    {
+      "name": "two-process-RELEASE_MANIFEST.json",
+      "pass": true,
+      "detail": "raw JSON bytes"
+    },
+    {
+      "name": "wrapped-scalar-types",
+      "pass": true,
+      "detail": "cmdlet strings and boxed scalar values"
+    },
+    {
+      "name": "array-semantics",
+      "pass": true,
+      "detail": "empty and singleton arrays"
+    },
+    {
+      "name": "ordinal-custom-object-and-format",
+      "pass": true,
+      "detail": "Ordinal nested object and LF"
+    },
+    {
+      "name": "actual-producer-artifact-and-status",
+      "pass": true,
+      "detail": "actual assignment and candidate routing, no candidate build"
+    },
+    {
+      "name": "wrapped-unsupported-type-rejected",
+      "pass": true,
+      "detail": "DateTime not converted to string/object"
+    },
+    {
+      "name": "verifier-reject-object",
+      "pass": true,
+      "detail": "exit=1 exact reason; audit not created and payload not executed"
+    },
+    {
+      "name": "verifier-reject-missing",
+      "pass": true,
+      "detail": "exit=1 exact reason; audit not created and payload not executed"
+    },
+    {
+      "name": "verifier-reject-null",
+      "pass": true,
+      "detail": "exit=1 exact reason; audit not created and payload not executed"
+    },
+    {
+      "name": "verifier-reject-empty",
+      "pass": true,
+      "detail": "exit=1 exact reason; audit not created and payload not executed"
+    },
+    {
+      "name": "verifier-reject-whitespace",
+      "pass": true,
+      "detail": "exit=1 exact reason; audit not created and payload not executed"
+    },
+    {
+      "name": "verifier-reject-number",
+      "pass": true,
+      "detail": "exit=1 exact reason; audit not created and payload not executed"
+    },
+    {
+      "name": "verifier-reject-boolean",
+      "pass": true,
+      "detail": "exit=1 exact reason; audit not created and payload not executed"
+    },
+    {
+      "name": "verifier-reject-array",
+      "pass": true,
+      "detail": "exit=1 exact reason; audit not created and payload not executed"
+    },
+    {
+      "name": "verifier-reject-wrong-name",
+      "pass": true,
+      "detail": "exit=1 exact reason; audit not created and payload not executed"
+    },
+    {
+      "name": "verifier-reject-wrong-version-name",
+      "pass": true,
+      "detail": "exit=1 exact reason; audit not created and payload not executed"
+    },
+    {
+      "name": "verifier-reject-uppercase",
+      "pass": true,
+      "detail": "exit=1 exact reason; audit not created and payload not executed"
+    },
+    {
+      "name": "verifier-reject-absolute",
+      "pass": true,
+      "detail": "exit=1 exact reason; audit not created and payload not executed"
+    },
+    {
+      "name": "verifier-reject-parent",
+      "pass": true,
+      "detail": "exit=1 exact reason; audit not created and payload not executed"
+    },
+    {
+      "name": "verifier-reject-separator",
+      "pass": true,
+      "detail": "exit=1 exact reason; audit not created and payload not executed"
+    },
+    {
+      "name": "verifier-reject-colon",
+      "pass": true,
+      "detail": "exit=1 exact reason; audit not created and payload not executed"
+    },
+    {
+      "name": "verifier-reject-leading-space",
+      "pass": true,
+      "detail": "exit=1 exact reason; audit not created and payload not executed"
+    },
+    {
+      "name": "verifier-reject-trailing-space",
+      "pass": true,
+      "detail": "exit=1 exact reason; audit not created and payload not executed"
+    },
+    {
+      "name": "verifier-reject-control",
+      "pass": true,
+      "detail": "exit=1 exact reason; audit not created and payload not executed"
+    },
+    {
+      "name": "verifier-reject-wrong-version",
+      "pass": true,
+      "detail": "exit=1 exact reason; audit not created and payload not executed"
+    },
+    {
+      "name": "verifier-reject-wrong-target",
+      "pass": true,
+      "detail": "exit=1 exact reason; audit not created and payload not executed"
+    },
+    {
+      "name": "correct-field-reaches-existing-hash-gate",
+      "pass": true,
+      "detail": "actual verifier accepts field; no executable fixture"
+    },
+    {
+      "name": "legacy-default-no-candidate-gate",
+      "pass": true,
+      "detail": "default 0.2.0 verifier behavior preserved"
+    },
+    {
+      "name": "legacy-producer-original-expression",
+      "pass": true,
+      "detail": "actual legacy final routing matches original serialization expression"
+    },
+    {
+      "name": "parse-candidate-packaging-tools.ps1",
+      "pass": true,
+      "detail": "AST syntax"
+    },
+    {
+      "name": "parse-package-v0.2.0-alpha.ps1",
+      "pass": true,
+      "detail": "AST syntax"
+    },
+    {
+      "name": "parse-verify-package-v0.2.0-alpha.ps1",
+      "pass": true,
+      "detail": "AST syntax"
+    },
+    {
+      "name": "parse-test-candidate-packaging-tools.ps1",
+      "pass": true,
+      "detail": "AST syntax"
+    },
+    {
+      "name": "parse-test-candidate-artifact-identity.ps1",
+      "pass": true,
+      "detail": "AST syntax"
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+TEST=serialize-process-0 PASS=True real command output and actual producer AST executed
+TEST=serialize-process-1 PASS=True real command output and actual producer AST executed
+TEST=two-process-scalars.json PASS=True raw JSON bytes
+TEST=two-process-RELEASE_MANIFEST.json PASS=True raw JSON bytes
+TEST=wrapped-scalar-types PASS=True cmdlet strings and boxed scalar values
+TEST=array-semantics PASS=True empty and singleton arrays
+TEST=ordinal-custom-object-and-format PASS=True Ordinal nested object and LF
+TEST=actual-producer-artifact-and-status PASS=True actual assignment and candidate routing, no candidate build
+TEST=wrapped-unsupported-type-rejected PASS=True DateTime not converted to string/object
+TEST=actual-input-filename-mismatch PASS=True valid declared artifact must match actual input name
+TEST=producer-readback-rejects-corrupted-json PASS=True valid memory value is insufficient when disk field is invalid
+TEST=verifier-reject-object PASS=True exit=1 exact reason; audit not created and payload not executed
+TEST=verifier-reject-missing PASS=True exit=1 exact reason; audit not created and payload not executed
+TEST=verifier-reject-null PASS=True exit=1 exact reason; audit not created and payload not executed
+TEST=verifier-reject-empty PASS=True exit=1 exact reason; audit not created and payload not executed
+TEST=verifier-reject-whitespace PASS=True exit=1 exact reason; audit not created and payload not executed
+TEST=verifier-reject-number PASS=True exit=1 exact reason; audit not created and payload not executed
+TEST=verifier-reject-boolean PASS=True exit=1 exact reason; audit not created and payload not executed
+TEST=verifier-reject-array PASS=True exit=1 exact reason; audit not created and payload not executed
+TEST=verifier-reject-wrong-name PASS=True exit=1 exact reason; audit not created and payload not executed
+TEST=verifier-reject-wrong-version-name PASS=True exit=1 exact reason; audit not created and payload not executed
+TEST=verifier-reject-uppercase PASS=True exit=1 exact reason; audit not created and payload not executed
+TEST=verifier-reject-absolute PASS=True exit=1 exact reason; audit not created and payload not executed
+TEST=verifier-reject-parent PASS=True exit=1 exact reason; audit not created and payload not executed
+TEST=verifier-reject-separator PASS=True exit=1 exact reason; audit not created and payload not executed
+TEST=verifier-reject-colon PASS=True exit=1 exact reason; audit not created and payload not executed
+TEST=verifier-reject-leading-space PASS=True exit=1 exact reason; audit not created and payload not executed
+TEST=verifier-reject-trailing-space PASS=True exit=1 exact reason; audit not created and payload not executed
+TEST=verifier-reject-control PASS=True exit=1 exact reason; audit not created and payload not executed
+TEST=verifier-reject-wrong-version PASS=True exit=1 exact reason; audit not created and payload not executed
+TEST=verifier-reject-wrong-target PASS=True exit=1 exact reason; audit not created and payload not executed
+TEST=correct-field-reaches-existing-hash-gate PASS=True actual verifier accepts field; no executable fixture
+TEST=legacy-default-no-candidate-gate PASS=True default 0.2.0 verifier behavior preserved
+TEST=legacy-producer-original-expression PASS=True actual legacy final routing matches original serialization expression
+TEST=parse-candidate-packaging-tools.ps1 PASS=True AST syntax
+TEST=parse-package-v0.2.0-alpha.ps1 PASS=True AST syntax
+TEST=parse-verify-package-v0.2.0-alpha.ps1 PASS=True AST syntax
+TEST=parse-test-candidate-packaging-tools.ps1 PASS=True AST syntax
+TEST=parse-test-candidate-artifact-identity.ps1 PASS=True AST syntax

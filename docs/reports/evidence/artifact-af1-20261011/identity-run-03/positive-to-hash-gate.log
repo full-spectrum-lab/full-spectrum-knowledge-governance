@@ -1,0 +1,5 @@
+Exception: C:\Users\wangjian0926\Desktop\codex专属仓库\worktrees\instance1-kg-packaging-p1-20261010\scripts\verify-package-v0.2.0-alpha.ps1:32
+Line |
+  32 |      throw "Archive SHA-256 mismatch."
+     |      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Archive SHA-256 mismatch.

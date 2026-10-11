@@ -1,0 +1,35 @@
+{
+  "runtime_prerequisites": {
+    "dotnet": "10",
+    "preflight": "bin/FullSpectrum.Knowledge.TestHost.exe verify-k0-02",
+    "windows_system_sqlite": "winsqlite3.dll"
+  },
+  "macos_test": "NOT_EXECUTED",
+  "schemas": {
+    "valid": 13,
+    "total": 13
+  },
+  "golden": "PASS",
+  "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "standard_json_schema_validator": "NOT_EXECUTED",
+  "native_sqlite_external_reverify": "EXTERNAL_REQUIRED",
+  "tag": "NOT_CREATED",
+  "linux_test": "NOT_EXECUTED",
+  "release_commit": "81029a24026b450763ecc2cfdf3a509d0c67791e",
+  "version": "v0.2.1-alpha",
+  "target": "win-x64",
+  "tests": {
+    "total": 92,
+    "passed": 92
+  },
+  "reproducibility": "CONTENT_AND_IDENTITY_VERIFIED; ARCHIVE_BYTE_REPRODUCIBILITY_NOT_EXECUTED",
+  "artifact": "full-spectrum-knowledge-governance-v0.2.1-alpha-win-x64.zip",
+  "production_ready": false,
+  "package_layout": {
+    "examples": "examples",
+    "cli": "bin",
+    "schemas": "schemas",
+    "library": "library"
+  },
+  "manifest_version": "1.0"
+}

@@ -4,11 +4,15 @@ param(
     [string]$InputPath,
     [int]$Order = 0,
     [string]$SourceLinkPdb,
-    [string]$MissingSourceLinkPdb
+    [string]$MissingSourceLinkPdb,
+    [Parameter(Mandatory)][string]$ExpectedCommit,
+    [string]$CleanRepository,
+    [string]$Dotnet = 'dotnet'
 )
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'candidate-packaging-tools.ps1')
-$commit = '2517afc7ca315ec0d02f9f52bdbe3f39bc7f0a50'
+$commit = $ExpectedCommit
+if ($commit -cnotmatch '^[0-9a-f]{40}$') { throw 'Explicit full expected commit required.' }
 
 # Child cases never compile KG or create a product candidate.
 if ($Case -ne 'all') {
@@ -75,7 +79,7 @@ function Record($Name,$Passed,$Detail) {
 }
 function Child($Name,$ExpectedExit,[string]$Path='',[int]$Sequence=0) {
     $log = Join-Path $EvidenceRoot "$Name-$Sequence.log"
-    & $pwsh -NoLogo -NoProfile -File $PSCommandPath -Case $Name -EvidenceRoot $EvidenceRoot -InputPath $Path -Order $Sequence 2>&1 | Tee-Object -FilePath $log
+    & $pwsh -NoLogo -NoProfile -File $PSCommandPath -Case $Name -EvidenceRoot $EvidenceRoot -InputPath $Path -Order $Sequence -ExpectedCommit $commit 2>&1 | Tee-Object -FilePath $log
     $code = $LASTEXITCODE
     $reasons = @{
         'bad-origin'='origin is not'; 'wrong-repository'='origin is not'; 'credentials-origin'='origin is not'
@@ -113,10 +117,10 @@ try {
     Child 'wrong-pdb-commit' 1 $SourceLinkPdb
     foreach ($origin in @('https://github.com/full-spectrum-lab/full-spectrum-knowledge-governance.git','git@github.com:full-spectrum-lab/full-spectrum-knowledge-governance.git')) { Assert-KgCanonicalOrigin $origin }
     Record 'canonical-origin-positive' $true 'HTTPS and approved SSH accepted'
-    $cleanRepository = Split-Path (Split-Path (Split-Path (Split-Path (Split-Path $SourceLinkPdb -Parent) -Parent) -Parent) -Parent) -Parent
-    Assert-KgCandidateSource -Repository $cleanRepository -ExpectedCommit $commit
+    if (-not $CleanRepository) { throw 'Explicit clean diagnostic repository required.' }
+    Assert-KgCandidateSource -Repository $CleanRepository -ExpectedCommit $commit
     Record 'clean-source-positive' $true 'existing diagnostic clean clone; no build'
-    $toolchain = Get-KgCandidateToolchain -Repository (Split-Path $PSScriptRoot -Parent) -Dotnet 'C:\Users\wangjian0926\.dotnet\dotnet.exe'
+    $toolchain = Get-KgCandidateToolchain -Repository (Split-Path $PSScriptRoot -Parent) -Dotnet $Dotnet
     Record 'pinned-toolchain-positive' ($toolchain.sdk -ceq '10.0.301') "sdk=$($toolchain.sdk) powershell=$($toolchain.powershell) runtime=$($toolchain.packaging_runtime)"
     $new = Assert-KgNewOutputDirectory -Root $EvidenceRoot -RelativeName 'unused-output'
     Record 'new-output-nonmutating' (-not (Test-Path -LiteralPath $new)) 'validation does not create or delete outputs'

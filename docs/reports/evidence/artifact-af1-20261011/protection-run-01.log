@@ -1,0 +1,62 @@
+TOOL_FIXTURE_ONLY=PASS
+TEST=fixture-0 PASS=True exit=0 expected=0 reason_match=True
+TOOL_FIXTURE_ONLY=PASS
+TEST=fixture-1 PASS=True exit=0 expected=0 reason_match=True
+TEST=two-process-fixture.json PASS=True sha256=3FF73159A298413F110560B958279114AA87BB94827C0B3EBD60615D019005E9
+TEST=two-process-single-array.json PASS=True sha256=7C167D64653CB54C79154E7E6163F78EB71C40DACBED5D6821D425A85CAFF7EF
+TEST=two-process-empty-array.json PASS=True sha256=37517E5F3DC66819F61F5A7BB8ACE1921282415F10551D2DEFA5C3EB0985B570
+TEST=two-process-tool-fixture.zip PASS=True sha256=A753C0DF5B5E3EE6E0E04337B708FA21A3757FF1035C34EF182B288512624898
+TEST=utf8-no-bom-lf-one-final-newline PASS=True format fixed
+TEST=ordinal-keys-and-array-preservation PASS=True case-sensitive keys and original arrays
+TEST=empty-array PASS=True empty array kept
+TEST=singleton-array PASS=True array not unwrapped
+EXPECTED_REJECT=Candidate origin is not an approved canonical KG address.
+TEST=bad-origin-0 PASS=True exit=1 expected=1 reason_match=True
+EXPECTED_REJECT=Candidate origin is not an approved canonical KG address.
+TEST=wrong-repository-0 PASS=True exit=1 expected=1 reason_match=True
+EXPECTED_REJECT=Candidate origin is not an approved canonical KG address.
+TEST=credentials-origin-0 PASS=True exit=1 expected=1 reason_match=True
+EXPECTED_REJECT=Candidate source commit mismatch.
+TEST=wrong-commit-0 PASS=True exit=1 expected=1 reason_match=True
+EXPECTED_REJECT=Expected commit must be full lowercase SHA.
+TEST=short-commit-0 PASS=True exit=1 expected=1 reason_match=True
+EXPECTED_REJECT=Candidate packaging requires a clean committed input.
+TEST=dirty-input-0 PASS=True exit=1 expected=1 reason_match=True
+EXPECTED_REJECT=Candidate output already exists; refusing replacement.
+TEST=existing-output-0 PASS=True exit=1 expected=1 reason_match=True
+EXPECTED_REJECT=Candidate output name must be a single relative directory name.
+TEST=traversal-output-0 PASS=True exit=1 expected=1 reason_match=True
+EXPECTED_REJECT=Candidate output name must be a single relative directory name.
+TEST=absolute-output-0 PASS=True exit=1 expected=1 reason_match=True
+EXPECTED_REJECT=An explicit existing isolated output root is required.
+TEST=missing-root-0 PASS=True exit=1 expected=1 reason_match=True
+EXPECTED_REJECT=SourceLink repository, mapping or commit mismatch.
+TEST=wrong-sourcelink-0 PASS=True exit=1 expected=1 reason_match=True
+EXPECTED_REJECT=Candidate packaging requires a clean committed input.
+TEST=dirty-entrypoint-0 PASS=True exit=1 expected=1 reason_match=True
+EXPECTED_REJECT=Candidate SDK does not match global.json.
+TEST=wrong-sdk-0 PASS=True exit=1 expected=1 reason_match=True
+EXPECTED_REJECT=Unsupported candidate JSON value type: System.DateTime
+TEST=unsupported-json-0 PASS=True exit=1 expected=1 reason_match=True
+TEST=real-pdb-sourcelink-positive PASS=True read-only metadata; no assembly execution
+EXPECTED_REJECT=Exactly one SourceLink record is required per PDB.
+TEST=missing-sourcelink-0 PASS=True exit=1 expected=1 reason_match=True
+EXPECTED_REJECT=SourceLink repository, mapping or commit mismatch.
+TEST=wrong-pdb-commit-0 PASS=True exit=1 expected=1 reason_match=True
+TEST=canonical-origin-positive PASS=True HTTPS and approved SSH accepted
+TEST=clean-source-positive PASS=True existing diagnostic clean clone; no build
+TEST=pinned-toolchain-positive PASS=True sdk=10.0.301 powershell=7.6.5 runtime=10.0.11
+TEST=new-output-nonmutating PASS=True validation does not create or delete outputs
+TEST=file-ordinal-order PASS=True Ordinal order, not culture collation
+TEST=legacy-serializer-default-equivalence PASS=True same-process comparison to original expression
+TEST=legacy-files-default-equivalence PASS=True matches original ordering expression
+TEST=candidate-stable-writer-routing PASS=True shared wrapper selects stable helper
+TEST=candidate-no-hardcoded-pass-static PASS=True candidate branch only; not a full build
+TEST=legacy-removal-is-candidate-disabled-static PASS=True destructive legacy branch unavailable to candidate mode
+TEST=parse-candidate-packaging-tools.ps1 PASS=True PowerShell AST parse
+TEST=parse-package-v0.1.1-alpha.ps1 PASS=True PowerShell AST parse
+TEST=parse-package-v0.2.0-alpha.ps1 PASS=True PowerShell AST parse
+TEST=parse-package-v0.2.1-alpha.ps1 PASS=True PowerShell AST parse
+TEST=parse-test-candidate-packaging-tools.ps1 PASS=True PowerShell AST parse
+TEST=parse-verify-package-v0.2.0-alpha.ps1 PASS=True PowerShell AST parse
+TEST=parse-verify-package-v0.2.1-alpha.ps1 PASS=True PowerShell AST parse

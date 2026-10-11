@@ -12,6 +12,11 @@ $dotnetCommand = Get-Command $dotnet -ErrorAction Stop
 if (-not $env:DOTNET_ROOT) { $env:DOTNET_ROOT = Split-Path -Parent $dotnetCommand.Source }
 $packagePath = (Resolve-Path -LiteralPath $Package).Path
 $releaseManifestPath = (Resolve-Path -LiteralPath $ReleaseManifest).Path
+if ($ExpectedVersion.TrimStart('v') -ceq '0.2.1-alpha') {
+    . (Join-Path $PSScriptRoot 'candidate-packaging-tools.ps1')
+    $candidateRelease = Get-Content -LiteralPath $releaseManifestPath -Raw | ConvertFrom-Json
+    Assert-KgCandidateArtifactIdentity -Manifest $candidateRelease -ArchivePath $packagePath
+}
 $auditPath = [IO.Path]::GetFullPath($AuditRoot)
 if (Test-Path -LiteralPath $auditPath) {
     throw "AuditRoot must not already exist: $auditPath"

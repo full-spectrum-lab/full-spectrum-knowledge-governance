@@ -1,0 +1,5 @@
+Exception: C:\Users\wangjian0926\Desktop\codex专属仓库\worktrees\instance1-kg-packaging-p1-20261010\scripts\candidate-packaging-tools.ps1:42
+Line |
+  42 |          throw 'Candidate artifact must be a single safe ZIP filename. …
+     |          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Candidate artifact must be a single safe ZIP filename.

@@ -1,0 +1,5 @@
+Exception: C:\Users\wangjian0926\Desktop\codex专属仓库\worktrees\instance1-kg-packaging-p1-20261010\scripts\candidate-packaging-tools.ps1:45
+Line |
+  45 |          throw 'Candidate artifact version or target mismatch.'
+     |          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Candidate artifact version or target mismatch.

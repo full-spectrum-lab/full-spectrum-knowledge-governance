@@ -3,27 +3,61 @@ function ConvertTo-KgStableJsonValue {
     param([AllowNull()]$Value, [int]$Depth = 0)
     if ($Depth -gt 32) { throw 'Candidate JSON depth exceeds 32.' }
     if ($null -eq $Value) { return $null }
-    if ($Value -is [Collections.IDictionary] -or $Value -is [pscustomobject]) {
+    # Cmdlet-returned scalars may also match [pscustomobject]. Preserve their
+    # underlying JSON type before inspecting adapted PSObject properties.
+    if ($Value -is [string] -or $Value -is [bool] -or $Value -is [byte] -or
+        $Value -is [int16] -or $Value -is [int32] -or $Value -is [int64] -or
+        $Value -is [uint16] -or $Value -is [uint32] -or $Value -is [uint64] -or $Value -is [decimal]) { return $Value.PSObject.BaseObject }
+    if ($Value -is [array] -or $Value -is [Collections.IList]) {
+        $result = @()
+        foreach ($child in $Value) { $result += ,(ConvertTo-KgStableJsonValue -Value $child -Depth ($Depth + 1)) }
+        return ,$result
+    }
+    if ($Value -is [Collections.IDictionary] -or $Value.PSObject.BaseObject -is [Management.Automation.PSCustomObject]) {
         $names = if ($Value -is [Collections.IDictionary]) { @($Value.Keys) } else { @($Value.PSObject.Properties.Name) }
         foreach ($name in $names) { if ($name -isnot [string]) { throw 'JSON object keys must be strings.' } }
         [string[]]$keys = @($names)
         [Array]::Sort($keys, [StringComparer]::Ordinal)
         $result = [Collections.Specialized.OrderedDictionary]::new([StringComparer]::Ordinal)
         foreach ($key in $keys) {
-            $child = if ($Value -is [Collections.IDictionary]) { $Value[$key] } else { $Value.PSObject.Properties[$key].Value }
+            # Do not route child values through an if-expression pipeline: it
+            # unwraps singleton arrays and drops empty arrays.
+            if ($Value -is [Collections.IDictionary]) { $child = $Value[$key] }
+            else { $child = $Value.PSObject.Properties[$key].Value }
             $result.Add($key, (ConvertTo-KgStableJsonValue -Value $child -Depth ($Depth + 1)))
         }
         return ,$result
     }
-    if ($Value -is [array] -or $Value -is [Collections.IList]) {
-        $result = @()
-        foreach ($child in $Value) { $result += ,(ConvertTo-KgStableJsonValue -Value $child -Depth ($Depth + 1)) }
-        return ,$result
-    }
-    if ($Value -is [string] -or $Value -is [bool] -or $Value -is [byte] -or
-        $Value -is [int16] -or $Value -is [int32] -or $Value -is [int64] -or
-        $Value -is [uint16] -or $Value -is [uint32] -or $Value -is [uint64] -or $Value -is [decimal]) { return $Value }
     throw "Unsupported candidate JSON value type: $($Value.GetType().FullName)"
+}
+
+function Assert-KgCandidateArtifactIdentity {
+    param([Parameter(Mandatory)]$Manifest, [Parameter(Mandatory)][string]$ArchivePath)
+    $artifact = $Manifest.artifact
+    if ($artifact -isnot [string] -or [string]::IsNullOrWhiteSpace($artifact)) {
+        throw 'Candidate artifact must be a nonempty string.'
+    }
+    if ($artifact -cne $artifact.Trim() -or $artifact -match '[\\/:\x00-\x1f\x7f]' -or
+        $artifact -in @('.', '..') -or [IO.Path]::IsPathRooted($artifact)) {
+        throw 'Candidate artifact must be a single safe ZIP filename.'
+    }
+    if ($Manifest.version -cne 'v0.2.1-alpha' -or $Manifest.target -cne 'win-x64') {
+        throw 'Candidate artifact version or target mismatch.'
+    }
+    $expected = 'full-spectrum-knowledge-governance-v0.2.1-alpha-win-x64.zip'
+    if (-not [string]::Equals($artifact, $expected, [StringComparison]::Ordinal) -or
+        -not [string]::Equals($artifact, [IO.Path]::GetFileName($ArchivePath), [StringComparison]::Ordinal)) {
+        throw 'Candidate artifact filename mismatch.'
+    }
+}
+
+function Write-KgCandidateReleaseManifest {
+    param([Parameter(Mandatory)]$Value, [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][string]$ArchivePath)
+    Assert-KgCandidateArtifactIdentity -Manifest $Value -ArchivePath $ArchivePath
+    Write-KgStableJson -Value $Value -Path $Path
+    $written = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
+    Assert-KgCandidateArtifactIdentity -Manifest $written -ArchivePath $ArchivePath
 }
 
 function Write-KgStableJson {

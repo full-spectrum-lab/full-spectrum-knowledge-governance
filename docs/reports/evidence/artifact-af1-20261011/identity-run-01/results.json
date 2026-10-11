@@ -1,0 +1,38 @@
+{
+  "created_at": "2026-10-11T05:01:36.0207990+08:00",
+  "scope": "AF1_TOOL_ONLY",
+  "candidate_built": false,
+  "powershell": "7.6.5",
+  "tests": [
+    {
+      "name": "serialize-process-0",
+      "pass": true,
+      "detail": "real command output and actual producer AST executed"
+    },
+    {
+      "name": "serialize-process-1",
+      "pass": true,
+      "detail": "real command output and actual producer AST executed"
+    },
+    {
+      "name": "two-process-scalars.json",
+      "pass": true,
+      "detail": "raw JSON bytes"
+    },
+    {
+      "name": "two-process-RELEASE_MANIFEST.json",
+      "pass": true,
+      "detail": "raw JSON bytes"
+    },
+    {
+      "name": "wrapped-scalar-types",
+      "pass": true,
+      "detail": "cmdlet strings and boxed scalar values"
+    },
+    {
+      "name": "array-semantics",
+      "pass": false,
+      "detail": "empty and singleton arrays"
+    }
+  ]
+}
