@@ -1,11 +1,11 @@
-# Created: 2026-10-11T16:18:00+08:00; Updated: 2026-10-11T16:48:00+08:00
-# Timezone: Asia/Shanghai; ID: KG-WIN-CI-WORKFLOW-20261011; Version: v0.2-preparation
-# Status: LOCAL_PREPARATION_PENDING_REVIEW_NOT_DEPLOYED; Owner: Instance 1
+# Created: 2026-10-11T16:18:00+08:00; Updated: 2026-10-11T17:31:00+08:00
+# Timezone: Asia/Shanghai; ID: KG-WIN-CI-WORKFLOW-20261011; Version: v0.3-local-context-fix
+# Status: LOCAL_FIX_PENDING_REVIEW_NOT_PUSHED; Owner: Instance 1
 # Scope: Existing candidate verification, not KG build/release
 # Baseline: validator 1295c27cd3409cb5395c04cd29378cb2610ab2ed; QPP b6e27e656552e27c848000e695b2cb0b8d16ff6b
 # Intended path after separate approval: .github/workflows/kg-windows-candidate.yml
-# Stored in a local non-repository payload; not deployed to GitHub.
-# Existing flow reviewed under 06B0C2BD...; deployment/registration/dispatch still require approval.
+# Supersedes workflow bytes at a2fa9ad1924b80d52203675c21d5ef9fb93186e6; history retained in Git.
+# Local context fix only; commit/push, default registration and dispatch require separate approval.
 name: KG existing Windows candidate verification
 on:
   workflow_dispatch:
@@ -38,11 +38,18 @@ jobs:
       run:
         shell: pwsh
     env:
-      KG_ROOT: ${{ runner.temp }}/kg-validation-${{ github.run_id }}-${{ github.run_attempt }}
       KG_VALIDATOR_COMMIT: 1295c27cd3409cb5395c04cd29378cb2610ab2ed
       DOTNET_CLI_TELEMETRY_OPTOUT: '1'
       DOTNET_SKIP_FIRST_TIME_EXPERIENCE: '1'
     steps:
+      - name: Initialize isolated candidate workspace
+        run: |
+          $ErrorActionPreference = 'Stop'
+          foreach ($key in @('RUNNER_TEMP', 'GITHUB_ENV', 'GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT')) {
+            if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($key))) { throw "Missing runner variable: $key" }
+          }
+          $root = Join-Path $env:RUNNER_TEMP "kg-validation-$($env:GITHUB_RUN_ID)-$($env:GITHUB_RUN_ATTEMPT)"
+          "KG_ROOT=$root" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - name: Checkout separately approved CI harness commit
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
